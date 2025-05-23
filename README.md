@@ -22,16 +22,16 @@
 
   # 实现步骤
   0. 安装ImageMagick工具,请看文末附录
-  1. 克隆本项目
-   git clone https://github.com/Yaho7/latex-fastbuild.git
+  1. 克隆本项目 
+   - git clone https://github.com/Yaho7/latex-fastbuild.git
   2. 安装依赖
-   确保本地已安装 ImageMagick（Mac 上可使用 brew install imagemagick）
-   安装好 LaTeX 及 VS Code
+   - 确保本地已安装 ImageMagick（Mac 上可使用 brew install imagemagick）
+   - 安装好 LaTeX 及 VS Code
   3. 在 VS Code 中打开本项目(PaperTemplate)
-    默认已配置好 settings.json
-    打开并编写 manuscript.tex
+   - 默认已配置好 settings.json
+   - 打开并编写 manuscript.tex
   4. 选择编译配方
-   在 VS Code 中右键选择 “使用 LaTeX Workshop 编译”，或从命令面板选择 latexmk 配方
+   - 在 VS Code 中右键选择 “使用 LaTeX Workshop 编译”，或从命令面板选择 latexmk 配方
 
 
   ## 实现原理
