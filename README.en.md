@@ -3,7 +3,7 @@
 - [English](./README.en.md)
 - [简体中文](./README.md)
   
-# How to Significantly Improve LaTeX Compilation Speed for Macos
+# Significantly Improve LaTeX Compilation Speed for Macos
 
 ## Introduction
 

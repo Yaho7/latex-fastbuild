@@ -3,7 +3,7 @@
   - [English](./README.en.md)
   - [简体中文](./README.md)
   
-  # 如何大幅提高 LaTeX 的编译速度, 适用于MacOS
+  # 大幅提高 LaTeX 的编译速度, 适用于MacOS
 
   ## 前言
 
