@@ -3,7 +3,7 @@
   - [English](./README.en.md)
   - [简体中文](./README.md)
   
-  # 如何大幅提高 LaTeX 的编译速度（开源、傻瓜级教程）
+  # 如何大幅提高 LaTeX 的编译速度,适用于MacOS（开源、傻瓜级教程）
 
   ## 前言
 
@@ -71,23 +71,6 @@
    ```
 
 3. 验证是否安装成功：
-
-   ```
-   convert -version
-   ```
-
-### **Windows 系统**
-
-1. 打开官网：https://imagemagick.org/script/download.php#windows
-
-2. 下载 ImageMagick-7.x.x-64-Q16-HDRI.exe（或适用于你系统的版本）；
-
-3. 安装时注意：
-
-   - 勾选 *Add application directory to your system path*；
-   - 勾选 *Install legacy utilities (e.g., convert)*；
-  
-4. 安装完成后，打开命令提示符，输入：
 
    ```
    convert -version

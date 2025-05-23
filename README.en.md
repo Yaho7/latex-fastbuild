@@ -3,7 +3,7 @@
 - [English](./README.en.md)
 - [简体中文](./README.md)
   
-# How to Significantly Improve LaTeX Compilation Speed (Open-source, Beginner-friendly Tutorial)
+# How to Significantly Improve LaTeX Compilation Speed for Macos (Open-source, Beginner-friendly Tutorial)
 
 ## Introduction
 
@@ -68,18 +68,6 @@ Our custom script automatically handles the following logic:
    brew install imagemagick
    ```
 3. Verify successful installation:
-   ```
-   convert -version
-   ```
-
-### **Windows**
-
-1. Go to the official website: https://imagemagick.org/script/download.php#windows
-2. Download ImageMagick-7.x.x-64-Q16-HDRI.exe (or version suitable for your system)
-3. During installation, make sure to:
-   - Check *Add application directory to your system path*
-   - Check *Install legacy utilities (e.g., convert)*
-4. After installation, open Command Prompt and enter:
    ```
    convert -version
    ```
