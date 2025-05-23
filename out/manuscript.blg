@@ -1,0 +1,15 @@
+[0] Config.pm:308> INFO - This is Biber 2.20
+[0] Config.pm:311> INFO - Logfile is '/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.blg'
+[33] biber:340> INFO - === Fri May 23, 2025, 15:08:54
+[41] Biber.pm:420> INFO - Reading '/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.bcf'
+[82] Biber.pm:994> INFO - Found 1 citekeys in bib section 0
+[88] Biber.pm:4463> INFO - Processing section 0
+[93] Biber.pm:4654> INFO - Looking for bibtex file 'bib/ref.bib' for section 0
+[93] bibtex.pm:1713> INFO - LaTeX decoding ...
+[95] bibtex.pm:1519> INFO - Found BibTeX data source 'bib/ref.bib'
+[112] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
+[112] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[112] Biber.pm:4283> INFO - Sorting list 'none/global//global/global/global' of type 'entry' with template 'none' and locale 'en-US'
+[112] Biber.pm:4289> INFO - No sort tailoring available for locale 'en-US'
+[115] bbl.pm:676> INFO - Writing '/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.bbl' with encoding 'UTF-8'
+[116] bbl.pm:779> INFO - Output to /Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.bbl
