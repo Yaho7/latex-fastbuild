@@ -1,4 +1,4 @@
-- # 如何大幅提高 LaTeX 的编译速度（开源、傻瓜级教程）
+  # 如何大幅提高 LaTeX 的编译速度（开源、傻瓜级教程）
 
   ## 前言
 
@@ -14,12 +14,11 @@
     - 设置 `latexmk` 编译工具
     - 配置图片自动转换 PDF 的脚本
 
----
 
   # 实现步骤
   0. 安装ImageMagick工具,请看文末附录
   1. 克隆本项目
-   git clone https://github.com/YourRepo/latex-speedup.git
+   git clone https://github.com/Yaho7/latex-fastbuild.git
   2. 安装依赖
    确保本地已安装 ImageMagick（Mac 上可使用 brew install imagemagick）
    安装好 LaTeX 及 VS Code
@@ -29,7 +28,6 @@
   4. 选择编译配方
    在 VS Code 中右键选择 “使用 LaTeX Workshop 编译”，或从命令面板选择 latexmk 配方
 
-  ---
 
   ## 实现原理
 
