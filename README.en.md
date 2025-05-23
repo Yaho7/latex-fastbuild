@@ -1,3 +1,8 @@
+## 📖 选择语言 | Select Language
+
+- [English](./README.en.md)
+- [简体中文](./README.md)
+  
 # How to Significantly Improve LaTeX Compilation Speed (Open-source, Beginner-friendly Tutorial)
 
 ## Introduction

@@ -1,3 +1,8 @@
+  ## 📖 选择语言 | Select Language
+  
+  - [English](./README.en.md)
+  - [简体中文](./README.md)
+  
   # 如何大幅提高 LaTeX 的编译速度（开源、傻瓜级教程）
 
   ## 前言
