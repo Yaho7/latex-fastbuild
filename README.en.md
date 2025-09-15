@@ -3,13 +3,14 @@
 - [English](./README.en.md)
 - [简体中文](./README.md)
   
-# Significantly Improve LaTeX Compilation Speed for Macos
+# Significantly Improve LaTeX Compilation Speed for Windows, MacOS, Linux
+
 
 ## Introduction
 
-About two months ago, I began systematically writing a paper and chose LaTeX among various typesetting tools. However, as my manuscript grew longer and included more images, compilation speed became increasingly slow—especially when inserting numerous PNG and JPEG images, each compilation often taking 60 seconds or longer.
+As the LaTeX manuscript grows longer and more images are added, the compilation speed becomes increasingly slower—especially when a large number of PNG or JPEG images are included, each compilation may take 60 seconds or even longer.
 
-This is because LaTeX needs to compress and convert these image formats to PDF during compilation before typesetting, which significantly slows down the process.
+This happens because LaTeX needs to compress and convert these image formats into PDF during compilation before performing typesetting, which significantly slows down the process.
 
 With the setup in this tutorial, you can **reduce the complete paper compilation time to under 5 seconds**.
 
@@ -56,18 +57,76 @@ Our custom script automatically handles the following logic:
 
 # Appendix
 
-## **ImageMagick Installation Guide**
+## **graphicsmagick Installation Guide**
 
-### **macOS**
+### **macOS System**
 
-#### **Using Homebrew (Recommended)**
+#### **Install using Homebrew (Recommended)**
 
-1. Open Terminal
+1. Open Terminal;
+
 2. Enter the following command to install:
+
    ```
-   brew install imagemagick
+   brew install graphicsmagick
    ```
-3. Verify successful installation:
+
+3. Verify the installation:
+
    ```
-   convert -version
+   gm convert -version
    ```
+
+   > Note: On macOS, the command for GraphicsMagick is usually `gm`, not `convert`. `convert` is an ImageMagick command.
+
+---
+
+### **Windows System**
+
+#### **Install using Installer (Recommended)**
+
+1. Go to the [GraphicsMagick official download page](http://www.graphicsmagick.org/);
+2. Under "Windows Packages," choose the appropriate version (usually Win64 dynamic at 16 bits per pixel);
+3. Download and run the `.exe` installer;
+4. During installation, check **Add application directory to your system path** (adds GraphicsMagick to the system environment variable);
+5. Open Command Prompt (CMD) or PowerShell and enter:
+
+   ```
+   gm convert -version
+   ```
+
+   If the version information appears, the installation was successful.
+
+---
+
+### **Linux System**
+
+#### **Install using Package Manager**
+
+1. Open Terminal;
+2. Enter the following command according to your distribution:
+
+   - **Debian/Ubuntu:**
+     ```
+     sudo apt-get update
+     sudo apt-get install graphicsmagick
+     ```
+
+   - **CentOS/Fedora:**
+     ```
+     sudo dnf install GraphicsMagick
+     ```
+     or
+     ```
+     sudo yum install GraphicsMagick
+     ```
+
+3. Verify the installation:
+
+   ```
+   gm convert -version
+   ```
+
+   If you see the version information, the installation was successful.
+
+> If you encounter issues or are using another distribution, please refer to the [official installation documentation](http://www.graphicsmagick.org/INSTALL-unix.html).

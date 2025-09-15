@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.5.7)  23 MAY 2025 15:08
+This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.5.7)  15 SEP 2025 10:16
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -699,7 +699,7 @@ Package: float 2001/11/08 v1.3d Float enhancements (AL)
 LaTeX Font Info:    Trying to load font information for T1+pplx on input line 72.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/t1pplx.fd
 File: t1pplx.fd 2004/09/06 font definitions for T1/pplx.
-) (/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.aux)
+) (/Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.aux)
 \openout1 = `manuscript.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 72.
@@ -788,7 +788,7 @@ Package biblatex Info: Automatic encoding selection.
 
 Package biblatex Info: Trying to load bibliographic data...
 Package biblatex Info: ... file 'manuscript.bbl' found.
- (/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.bbl)
+ (/Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.bbl)
 Package biblatex Info: Reference section=0 on input line 72.
 Package biblatex Info: Reference segment=0 on input line 72.
 Package caption Info: Begin \AtBeginDocument code.
@@ -803,7 +803,7 @@ File: color.cfg 2016/01/02 v1.6 sample color configuration
 Package color Info: Driver file: xetex.def on input line 149.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/graphics/mathcolor.ltx))
 Package hyperref Info: Link coloring ON on input line 72.
- (/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.out) (/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.out)
+ (/Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.out) (/Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.out)
 \@outlinefile=\write4
 \openout4 = `manuscript.out'.
 
@@ -842,7 +842,7 @@ File: Figures/PDF/LOGO.pdf Graphic file (type pdf)
 Package microtype Info: Character `029' is missing
 (microtype)             in font `T1/pplx/m/sc/10'.
 (microtype)             Ignoring protrusion settings for this character.
-LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 98.
+LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 97.
 (/usr/local/texlive/2025/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -855,7 +855,7 @@ Package microtype Info: Loading generic protrusion settings for font family
 [1
 
 
-] (/Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.aux)
+] (/Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
@@ -868,11 +868,11 @@ Package logreq Info: Writing requests to 'manuscript.run.xml'.
  ) 
 Here is how much of TeX's memory you used:
  22846 strings out of 473832
- 403162 string characters out of 5729482
+ 403123 string characters out of 5729482
  1267556 words of memory out of 5000000
  45634 multiletter control sequences out of 15000+600000
  606322 words of font info for 99 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  81i,13n,95p,1365b,4996s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on /Users/yaho/Documents/GitRepos/latex/PaperTemplate/out/manuscript.xdv (1 page, 4620 bytes).
+Output written on /Users/yaho/Downloads/fastlatex/latex-fastbuild/out/manuscript.xdv (1 page, 4620 bytes).
