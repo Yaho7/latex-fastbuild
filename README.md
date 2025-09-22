@@ -129,5 +129,3 @@
    如果看到版本信息，则说明安装成功。
 
 > 如果遇到问题或使用其他发行版，请参考 [官方安装文档](http://www.graphicsmagick.org/INSTALL-unix.html)。
-
-测试
