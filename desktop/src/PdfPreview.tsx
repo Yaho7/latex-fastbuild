@@ -11,7 +11,8 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 
 export default function PdfPreview({ data, label }: { data: string; label: string }) {
   const host = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(480);
+  const frame = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 480, height: 240 });
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -19,9 +20,12 @@ export default function PdfPreview({ data, label }: { data: string; label: strin
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const element = host.current;
+    const element = frame.current;
     if (!element) return;
-    const update = () => { if (element.clientWidth > 0) setWidth(element.clientWidth); };
+    const update = () => {
+      const { clientWidth: width, clientHeight: height } = element;
+      if (width > 0 && height > 0) setSize((previous) => previous.width === width && previous.height === height ? previous : { width, height });
+    };
     update();
     if (typeof ResizeObserver === "undefined") {
       window.addEventListener("resize", update);
@@ -57,7 +61,8 @@ export default function PdfPreview({ data, label }: { data: string; label: strin
         const pdfPage = await pdf.getPage(page);
         if (disposed) return;
         const natural = pdfPage.getViewport({ scale: 1 });
-        const viewport = pdfPage.getViewport({ scale: Math.max(120, width - 48) / natural.width * zoom });
+        const fit = Math.min(Math.max(1, size.width - 48) / natural.width, Math.max(1, size.height - 32) / natural.height);
+        const viewport = pdfPage.getViewport({ scale: fit * zoom });
         const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(16_000_000 / (viewport.width * viewport.height)));
         canvas.width = Math.max(1, Math.floor(viewport.width * ratio));
         canvas.height = Math.max(1, Math.floor(viewport.height * ratio));
@@ -79,14 +84,14 @@ export default function PdfPreview({ data, label }: { data: string; label: strin
       if (loadingTask) void loadingTask.destroy().catch(() => undefined);
       canvas.remove();
     };
-  }, [data, label, page, width, zoom]);
+  }, [data, label, page, size, zoom]);
 
   return <div className="pdf-preview">
     <div className="pdf-toolbar" role="group" aria-label="PDF 预览工具">
       <IconButton label="上一页" size="icon-sm" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}><ChevronLeft aria-hidden="true" /></IconButton><span className="page-count">{page} / {pages || "…"}</span><IconButton label="下一页" size="icon-sm" disabled={page >= pages || loading} onClick={() => setPage((value) => value + 1)}><ChevronRight aria-hidden="true" /></IconButton>
       <Separator orientation="vertical" className="mx-1 h-4" />
-      <IconButton label="缩小" size="icon-sm" disabled={zoom <= 0.25} onClick={() => setZoom((value) => Math.max(0.25, value - 0.25))}><Minus aria-hidden="true" /></IconButton><span className="zoom-value">{Math.round(zoom * 100)}%</span><IconButton label="放大" size="icon-sm" disabled={zoom >= 4} onClick={() => setZoom((value) => Math.min(4, value + 0.25))}><Plus aria-hidden="true" /></IconButton><IconButton label="适合宽度" size="icon-sm" onClick={() => setZoom(1)}><Maximize aria-hidden="true" /></IconButton>
+      <IconButton label="缩小" size="icon-sm" disabled={zoom <= 0.25} onClick={() => setZoom((value) => Math.max(0.25, value - 0.25))}><Minus aria-hidden="true" /></IconButton><span className="zoom-value">{Math.round(zoom * 100)}%</span><IconButton label="放大" size="icon-sm" disabled={zoom >= 4} onClick={() => setZoom((value) => Math.min(4, value + 0.25))}><Plus aria-hidden="true" /></IconButton><IconButton label="适合页面" size="icon-sm" onClick={() => setZoom(1)}><Maximize aria-hidden="true" /></IconButton>
     </div>
-    <div className="pdf-viewport"><div ref={host} className="pdf-canvas-host" aria-busy={loading} />{loading && <div className="pdf-render-status" role="status"><LoaderCircle size={16} className="spin" aria-hidden="true" />正在渲染</div>}{error && <p className="preview-error pdf-error" role="alert">{error}</p>}</div>
+    <div ref={frame} className="pdf-viewport"><div ref={host} className="pdf-canvas-host" aria-busy={loading} />{loading && <div className="pdf-render-status" role="status"><LoaderCircle size={16} className="spin" aria-hidden="true" />正在渲染</div>}{error && <p className="preview-error pdf-error" role="alert">{error}</p>}</div>
   </div>;
 }

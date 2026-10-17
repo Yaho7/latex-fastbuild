@@ -79,6 +79,13 @@ try {
     return false;
   });
   await page.screenshot({ path: "screenshots/fixture-converted-pdf.png", fullPage: true });
+  const fitted = await page.locator(".pdf-viewport").evaluate((viewport) => {
+    const canvas = viewport.querySelector("canvas");
+    if (!canvas) return false;
+    const page = canvas.getBoundingClientRect();
+    return page.height + 32 <= viewport.clientHeight + 1 && page.width + 48 <= viewport.clientWidth + 1;
+  });
+  assert.equal(fitted, true, "Default PDF preview must fit the whole page without cropping");
   await page.getByRole("button", { name: "预览替换", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "确认引用替换" });
   await dialog.waitFor();
