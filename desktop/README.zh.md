@@ -46,9 +46,13 @@ Texgo 桌面版使用 Tauri 2、Rust 和 React，面向 Windows、macOS 和 Linu
 
 ## 编辑器与开放 API
 
-Release 同时提供独立的 `texgo-engine` 工具包。无需启动图形界面，即可通过命令行、版本化项目 JSON 和标准输入输出上的 JSON-RPC 2.0 调用图片处理与编译流程。
+桌面安装包已内置完整的 `texgo-engine`，安装一次即可同时获得图形界面和命令行引擎，不必再下载第二个工具包。引擎可以在桌面应用未运行时独立调用，通过版本化项目 JSON 和标准输入输出上的 JSON-RPC 2.0 完成图片处理与编译。
+
+macOS 引擎路径为 `/Applications/Texgo.app/Contents/MacOS/texgo-engine`；Windows 位于选定安装目录下的 `texgo-engine.exe`；Debian 包安装到 `/usr/bin/texgo-engine`。AppImage 可从同一个桌面包提取引擎。除 Debian 包外，不会擅自修改系统 PATH；编辑器可直接使用完整路径。
 
 VS Code 示例包含普通构建和后台监听任务；其他编辑器或插件可使用同样的接口。编译功能依赖本机已安装的 `latexmk` 和对应 LaTeX 引擎。图片处理不需要安装 TeX。
+
+工作台使用 shadcn/ui、Radix 和 Tailwind CSS：左侧图片表格，右侧预览、画质与引用位置。替换操作仍需确认，并保留最近一次撤销记录。
 
 接口文档见 [api.md](../docs/api.md)，项目配置定义见 [project.schema.json](../docs/project.schema.json)，VS Code 示例见 [examples/vscode](../examples/vscode)。
 

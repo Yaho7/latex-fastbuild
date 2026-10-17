@@ -5,7 +5,10 @@ desktop UI. Integrate it as a process in VS Code, another editor, a script, or
 an agent. The API is newline-delimited JSON-RPC 2.0 over stdin/stdout, not HTTP.
 No listener, account, token, or cloud service is involved.
 
-Install the standalone binary from the release archive and put it on `PATH`.
+Installing Texgo Desktop also installs this engine. See the
+[bundled executable paths](desktop-release.md#one-install-gui-and-cli) and use
+that absolute path as the editor's process command. A separate engine archive
+is optional for CLI-only deployments; put that binary on `PATH` if preferred.
 Compilation requires an existing TeX distribution providing `latexmk` and the
 chosen engine. Texgo never downloads or installs TeX. Run only trusted TeX
 projects: latexmk, TeX, project latexmkrc files, packages, and external tools

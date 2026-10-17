@@ -39,6 +39,13 @@
 - [x] Persist generated-PDF-to-source mappings so background runs update edited original images after reference replacement.
 - [ ] Test headless operations on Actions and publish engine archives alongside desktop installers.
 
+## 5. User-Requested UI and Installer Revision
+
+- [x] Replace bespoke controls with official shadcn/ui components, generated through the CLI on GitHub Actions.
+- [x] Reorganize the workbench into a file table and a combined preview/settings inspector.
+- [x] Bundle the independent engine as a Tauri external binary in the same desktop installer.
+- [ ] Verify new UI screenshots and all packaged CLI payloads on Actions before tagging a release.
+
 ## Acceptance
 
 - Opening a real multi-file LaTeX fixture discovers only referenced images and reports unresolved paths.

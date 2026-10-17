@@ -5,9 +5,11 @@ CLI: React/Vite in this directory, and Tauri 2 with the `texgo-desktop` Rust cra
 in `src-tauri/`.
 Its initial version is `0.2.0`. The repository's [MIT license](../LICENSE) applies.
 
-The same release includes a standalone `texgo-engine` archive for developers.
-It runs without a GUI and provides CLI automation, newline JSON-RPC 2.0,
-versioned project configuration, and VS Code build/watch task examples.
+Every desktop installer includes `texgo-engine`: one installation supplies both
+the GUI and a headless CLI/JSON-RPC process. No separate engine download is
+required. Use the [installed binary paths](../docs/desktop-release.md#one-install-gui-and-cli)
+in your editor, or optionally download the CLI-only archive. The engine runs
+without opening the GUI and supports versioned configuration and VS Code tasks.
 See [API integration](../docs/api.md) and the [project JSON schema](../docs/project.schema.json).
 
 ## CI and Downloads
@@ -32,7 +34,8 @@ have the workflow's retention period.
 
 Engine archives are named `texgo-engine_<version>_<platform>_<arch>.zip` on
 Windows and `.tar.gz` on macOS/Linux. They contain the executable, API guide,
-configuration schema, license and editor examples. They require no WebView.
+configuration schema, license and editor examples. These optional archives
+require no WebView; desktop users already have the same engine installed.
 Document compilation additionally requires a locally installed LaTeX toolchain.
 
 Windows builds are unsigned and can trigger SmartScreen or enterprise-policy

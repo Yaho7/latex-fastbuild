@@ -1,7 +1,11 @@
 # VS Code Integration
 
-Open this directory as the VS Code workspace. Put the released `texgo-engine`
-binary and your TeX distribution's `latexmk`/`xelatex` on `PATH`.
+Open this directory as the VS Code workspace. Installing Texgo Desktop already
+provides `texgo-engine`; no second download is needed. Use its
+[absolute installed path](../../docs/desktop-release.md#one-install-gui-and-cli)
+for the `command` fields in both `.vscode/tasks.json` and `.vscode/settings.json`,
+or keep `texgo-engine` when it is on `PATH`. Your TeX distribution's
+`latexmk`/`xelatex` must also be on `PATH`.
 
 Run **Tasks: Run Build Task** to execute the named default task **Texgo: build**,
 or **Tasks: Run Task → Texgo: watch** for a persistent background build. Stop it
