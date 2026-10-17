@@ -316,3 +316,33 @@ fn project_write_lock_prevents_concurrent_apply_without_clobbering_journal() {
     ws.apply().unwrap();
     assert!(dir.path().join(".texgo/undo.json").exists());
 }
+
+#[test]
+fn replaced_images_remain_linked_to_sources_and_noop_rebuilds_preserve_undo() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "main.tex", "\\includegraphics{a.png}");
+    png(dir.path(), "a.png");
+    let main = dir.path().join("main.tex");
+    let mut ws = Workspace::open(&main).unwrap();
+    let first = ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    ws.apply().unwrap();
+    let mut reopened = Workspace::open(&main).unwrap();
+    assert_eq!(reopened.project().images[0].relative_path, "a.png");
+    assert_eq!(reopened.project().images[0].status, "ready");
+    let cached = reopened.convert(&options(&reopened), &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(cached.images[0].cached);
+    assert_eq!(reopened.plan().unwrap().reference_count, 0);
+    assert!(reopened.project().undo_available);
+    fs::remove_file(first.images[0].pdf_path.as_ref().unwrap()).unwrap();
+    let mut missing_cache = Workspace::open(&main).unwrap();
+    assert_eq!(missing_cache.project().images[0].status, "ready");
+    let rebuilt = missing_cache.convert(&options(&missing_cache), &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(!rebuilt.images[0].cached);
+    assert!(rebuilt.images[0].error.is_none());
+    image::RgbaImage::from_pixel(32, 16, image::Rgba([5, 200, 5, 255])).save(dir.path().join("a.png")).unwrap();
+    let updated = reopened.convert(&options(&reopened), &AtomicBool::new(false), |_| {}).unwrap();
+    assert_ne!(first.images[0].pdf_path, updated.images[0].pdf_path);
+    assert_eq!(reopened.plan().unwrap().reference_count, 1);
+    reopened.apply().unwrap();
+    assert!(fs::read_to_string(main).unwrap().contains(updated.images[0].pdf_path.as_ref().unwrap().split("texgo-pdf/").last().unwrap()));
+}

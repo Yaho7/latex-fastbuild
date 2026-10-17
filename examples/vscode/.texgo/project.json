@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../docs/project.schema.json",
+  "version": 1,
+  "mainFile": "../main.tex",
+  "images": {
+    "enabled": true,
+    "quality": "original",
+    "dpi": 300,
+    "maxWidthMm": 160,
+    "jpegQuality": 90,
+    "replace": true
+  },
+  "build": {
+    "engine": "xelatex",
+    "outputDir": "build",
+    "synctex": true
+  }
+}

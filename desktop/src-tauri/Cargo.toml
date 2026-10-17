@@ -5,6 +5,7 @@ description = "A local LaTeX image workbench"
 authors = ["yaho"]
 edition = "2021"
 license = "MIT"
+default-run = "texgo-desktop"
 
 [lib]
 name = "texgo_desktop"
@@ -15,9 +16,15 @@ name = "texgo-desktop"
 path = "src/main.rs"
 required-features = ["desktop"]
 
+[[bin]]
+name = "texgo-engine"
+path = "src/bin/texgo-engine.rs"
+required-features = ["automation"]
+
 [features]
 default = ["desktop"]
 desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-dialog"]
+automation = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [], optional = true }

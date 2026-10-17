@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Texgo Project",
+  "description": "Versioned configuration for texgo-engine and editor integrations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "mainFile"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "mainFile": { "type": "string", "minLength": 1, "description": "Path relative to this configuration file." },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "quality": { "enum": ["original", "high", "compact", "custom"], "default": "original" },
+        "dpi": { "type": "integer", "minimum": 72, "maximum": 1200, "default": 300 },
+        "maxWidthMm": { "type": "number", "minimum": 10, "maximum": 1000, "default": 160 },
+        "jpegQuality": { "type": "integer", "minimum": 1, "maximum": 100, "default": 90 },
+        "replace": { "type": "boolean", "default": false, "description": "Explicitly authorize source reference replacement during the pipeline." }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine": { "enum": ["xelatex", "pdflatex", "lualatex"], "default": "xelatex" },
+        "outputDir": { "type": "string", "minLength": 1, "default": "build", "description": "Dedicated build directory inside the main file's project root." },
+        "synctex": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

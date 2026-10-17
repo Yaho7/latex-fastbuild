@@ -47,6 +47,7 @@ pub(crate) fn prepare(project: &Project, sources: &BTreeMap<PathBuf, Vec<u8>>, c
         let relative = pathdiff::diff_paths(&real, root).ok_or("无法生成相对图片路径")?.to_string_lossy().replace('\\', "/");
         if relative.contains(['{', '}', '%', '#', '\n', '\r']) { return Err("输出目录含有 TeX 特殊字符，请调整图片目录名称".into()); }
         for reference in &asset.references {
+            if reference.original == relative { continue; }
             edits.entry(PathBuf::from(&reference.file)).or_default().push((reference.start, reference.end, reference.line, reference.original.clone(), relative.clone()));
         }
     }
@@ -136,7 +137,7 @@ fn undo_path(root: &Path) -> Result<PathBuf, String> {
     Ok(dir.join("undo.json"))
 }
 
-fn lock_project(root: &Path) -> Result<fs::File, String> {
+pub(crate) fn lock_project(root: &Path) -> Result<fs::File, String> {
     let path = undo_path(root)?.with_file_name("write.lock");
     if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.file_type().is_symlink()) { return Err("项目锁文件不能是符号链接".into()); }
     let file = fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).map_err(|e| e.to_string())?;

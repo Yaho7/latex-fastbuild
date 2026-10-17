@@ -24,6 +24,7 @@ pub(crate) struct StoredConversion {
 impl Workspace {
     pub fn open(main: &Path) -> Result<Self, String> {
         let mut scan = scanner::scan(main)?;
+        crate::manifest::restore_sources(&mut scan.project);
         scan.project.undo_available = transaction::undo_available(Path::new(&scan.project.root));
         Ok(Self { scan, converted: BTreeMap::new() })
     }
@@ -50,6 +51,7 @@ impl Workspace {
                 let (output, cached, dependencies) = conversion::convert(&real, Path::new(&self.scan.project.root), options)?;
                 if digest(&fs::read(&real).map_err(|e| e.to_string())?) != source_hash { return Err("转换过程中图片发生变化，请重试".into()); }
                 let bytes = fs::read(&output).map_err(|e| e.to_string())?;
+                crate::manifest::remember(Path::new(&self.scan.project.root), &real, &output)?;
                 let converted = ConvertedImage { id: asset.id.clone(), pdf_path: Some(output.to_string_lossy().into()), bytes: Some(bytes.len() as u64), cached, error: None };
                 self.converted.insert(asset.id.clone(), StoredConversion { path: output, source_hash, pdf_hash: digest(&bytes), dependencies });
                 Ok(converted)

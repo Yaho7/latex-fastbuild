@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Texgo: build",
+      "type": "process",
+      "command": "texgo-engine",
+      "args": ["run", "--config", "${workspaceFolder}/.texgo/project.json"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": {
+        "owner": "texgo",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):\\s+(error|warning):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "Texgo: watch",
+      "type": "process",
+      "command": "texgo-engine",
+      "args": ["watch", "--config", "${workspaceFolder}/.texgo/project.json"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": {
+        "owner": "texgo",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):\\s+(error|warning):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[texgo\\] build-start$",
+          "endsPattern": "^\\[texgo\\] watch-ready$"
+        }
+      }
+    }
+  ]
+}
