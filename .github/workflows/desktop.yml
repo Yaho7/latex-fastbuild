@@ -344,6 +344,20 @@ jobs:
       - name: Install frontend dependencies
         working-directory: desktop
         run: npm ci
+      - name: Build headless engine before the Tauri build
+        run: cargo build --manifest-path desktop/src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target ${{ matrix.target }}
+      - name: Stage the target-specific Tauri sidecar
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          extension=''
+          if [ "$RUNNER_OS" = Windows ]; then extension='.exe'; fi
+          source="desktop/src-tauri/target/$TARGET/release/texgo-engine$extension"
+          sidecar="desktop/src-tauri/binaries/texgo-engine-$TARGET$extension"
+          test -s "$source"
+          mkdir -p desktop/src-tauri/binaries
+          cp "$source" "$sidecar"
+          if [ "$RUNNER_OS" != Windows ]; then chmod +x "$sidecar"; fi
       - name: Generate platform icons before the default-feature Tauri build
         working-directory: desktop
         run: |
@@ -366,6 +380,21 @@ jobs:
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked --bin texgo-desktop
           uploadWorkflowArtifacts: false
           uploadUpdaterJson: false
+      - name: Verify the engine inside every actual desktop package
+        timeout-minutes: 15
+        run: |
+          python desktop/scripts/verify-bundled-engine.py \
+            --target '${{ matrix.target }}' \
+            --version '${{ needs.frontend.outputs.version }}' \
+            --report bundled-engine-proof/report.json
+      - name: Upload packaged-engine evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-bundled-engine-${{ matrix.platform }}-${{ matrix.arch }}
+          path: bundled-engine-proof/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Linux native startup liveness only (not GUI functionality)
         if: runner.os == 'Linux'
         timeout-minutes: 2
@@ -403,25 +432,6 @@ jobs:
           path: desktop-native-smoke/
           if-no-files-found: warn
           retention-days: 14
-      - name: Build standalone automation engine without GUI features
-        run: cargo build --manifest-path desktop/src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target ${{ matrix.target }}
-      - name: Smoke-test the standalone JSON-RPC entry point
-        if: runner.os != 'macOS' || (runner.arch == 'ARM64' && matrix.arch == 'arm64') || (runner.arch == 'X64' && matrix.arch == 'x64')
-        env:
-          TARGET: ${{ matrix.target }}
-        run: |
-          extension=''
-          if [ "$RUNNER_OS" = Windows ]; then extension='.exe'; fi
-          binary="$GITHUB_WORKSPACE/desktop/src-tauri/target/$TARGET/release/texgo-engine$extension"
-          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools.info"}' | "$binary" rpc > engine-info.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          response = json.loads(Path('engine-info.json').read_text())
-          assert response['id'] == 1
-          assert response['result']['name'] == 'texgo-engine'
-          assert 'pipeline.run' in response['result']['methods']
-          PY
       - name: Collect every requested installer with a unique platform name
         env:
           VERSION: ${{ needs.frontend.outputs.version }}
@@ -566,18 +576,22 @@ jobs:
           PRERELEASE: ${{ needs.frontend.outputs.prerelease }}
         run: |
           cat > release-notes.md <<'NOTES'
-          Texgo Desktop: a local LaTeX image workbench with an Apple-inspired UI,
+          Texgo Desktop: a local LaTeX image workbench,
           recursive reference scanning, PDF quality presets, image/PDF previews,
           reversible reference replacement and source-image tracking.
 
           Installers: Windows x64 (NSIS), Linux x64 (Debian/AppImage), and macOS
-          Apple Silicon/Intel (DMG). Standalone texgo-engine archives provide CLI,
-          JSON-RPC 2.0, automatic compilation and ready-to-use VS Code build/watch
-          examples. See api.md and project.schema.json inside the engine archive.
+          Apple Silicon/Intel (DMG). Every desktop package includes the headless
+          texgo-engine CLI and JSON-RPC API: one install provides both GUI and CLI.
+          No separate engine download is needed. Compatibility engine archives
+          include API documentation, the project schema and VS Code examples.
+          See docs/desktop-release.md for installed CLI paths and editor setup.
 
           Checks run on GitHub Actions: frontend tests, browser fixture rendering,
           Rust tests on three operating systems, a real pdfLaTeX automation fixture,
-          standalone API smoke tests on native targets, and Linux startup liveness.
+          package-content/CPU checks, packaged CLI/API smoke tests on native
+          targets, Windows silent install/uninstall, and Linux startup liveness.
+          Intel macOS cross-builds are inspected but not executed on ARM runners.
           Browser fixtures do not establish native GUI installation behavior.
 
           SHA256SUMS covers every download. Windows builds are unsigned; macOS

@@ -22,6 +22,13 @@ workflow and branch/tag/PR: newer branch/PR runs cancel older runs, while runs
 for the same tag queue without cancellation. Distinct tags cannot overwrite
 one another's assets.
 
+The desktop tag is the maintainer's release approval. Do not create or push it
+until the redesigned UI has passed QA, including review of branch CI/browser
+artifacts and native UI testing. Packaging success alone is not UI acceptance.
+Once a desktop tag is pushed, GitHub Actions automatically publishes after every
+gate succeeds; no repository approval variable is required. Branch/PR/manual
+runs never publish. No tag or release is created by this implementation change.
+
 ## Version Contract
 
 These three literal versions must be identical, including any prerelease suffix:
@@ -37,8 +44,8 @@ CI automatically marks versions with a prerelease suffix as GitHub prereleases.
 Both stable and prerelease desktop releases use `--latest=false`, preserving
 the repository's CLI latest-release selection.
 
-The maintainer/parent owns committing and pushing. After reviewing the changes
-and a successful branch run, the release commands are:
+The maintainer/parent owns committing and pushing. Only after a successful
+branch run and redesigned-UI QA, release with:
 
 ```sh
 # Run by the maintainer, not by the local implementation agent.
@@ -94,9 +101,27 @@ machine. Do not move an already published tag to retry a release.
    configuration schema and VS Code example. Only after these checks,
    frontend/browser QA and the entire Rust test matrix pass, the
    official [`tauri-apps/tauri-action@v1`](https://github.com/tauri-apps/tauri-action)
-   builds the four packages. Each packaging job first runs the following in
-   `desktop/`, after downloading `desktop-npm-lock` and running `npm ci`, and
-   before any default-feature native build:
+   builds the four packages. Before Tauri compiles or bundles anything, each
+   packaging job builds the headless engine with:
+
+   ```sh
+   # On GitHub Actions only, from the repository root; TARGET is the matrix target.
+   cargo build --manifest-path desktop/src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target "$TARGET"
+   ```
+
+   CI copies it into `desktop/src-tauri/binaries/texgo-engine-<target>` (plus
+   `.exe` on Windows), preserving executable permission on Unix. The Tauri
+   configuration declares `bundle.externalBin: ["binaries/texgo-engine"]`.
+   The target triple belongs to the **input filename**, not the installed CLI
+   name. Generated sidecars are ignored by Git and are not committed. See
+   Tauri 2's [external-binary guide](https://v2.tauri.app/develop/sidecar/) and
+   [configuration contract](https://v2.tauri.app/reference/config/#externalbin).
+   No shell plugin or webview process-execution permission is needed just to
+   bundle a CLI that editors and terminals invoke independently. The GUI keeps
+   its existing in-process Rust commands.
+
+   Each job also runs the following in `desktop/`, after downloading
+   `desktop-npm-lock` and running `npm ci`, and before the default-feature build:
 
    ```sh
    npx tauri icon app-icon.svg
@@ -130,6 +155,29 @@ machine. Do not move an already published tag to retry a release.
    Both macOS targets build on macOS 14; the Intel build is a cross-build, not
    proof of execution on an Intel Mac.
 
+   Immediately after bundling, `desktop/scripts/verify-bundled-engine.py`
+   checks **every actual installer**, not just the engine in `target/release`:
+
+   - Windows: silently install NSIS to a temporary path containing spaces,
+     verify both executable CPU headers, run the installed CLI's `--help` and
+     JSON-RPC `tools.info`, and silently uninstall. Require both GUI and CLI to
+     be removed and user/machine registry PATH values to remain unchanged.
+   - macOS: mount each DMG read-only, copy `Texgo.app` to a temporary installation
+     directory, inspect the app version and GUI/CLI Mach-O CPU headers, and
+     verify ad-hoc signatures. Run the copied CLI only when Rust's native host
+     tuple matches the target; Intel-on-ARM execution is explicitly skipped.
+   - Linux: extract each `.deb` and AppImage, require both ELF executables under
+     `usr/bin`, and execute `--help` and `tools.info` from the extracted CLI.
+     This does not install a Debian package or test desktop integration.
+
+   Native CLI smoke checks require the expected engine name, matching release
+   version and `pipeline.run` RPC method. They run from a temporary directory,
+   independently of the GUI. PE/ELF/Mach-O header checks apply even when execution
+   is skipped. Per-package SHA-256, commands/output, results and skip reasons are
+   retained for 14 days as `desktop-bundled-engine-<platform>-<arch>`, including
+   diagnostics on failure. This verifier refuses non-GitHub-Actions execution;
+   no local build, install, test or packaging is part of this workflow change.
+
    Linux installs WebKitGTK 4.1, AppIndicator, librsvg, patchelf, xdg-utils,
    libfuse2, Xvfb and xauth. Ubuntu 22.04 is the glibc baseline, not a promise that every older
    distribution works. `APPIMAGE_EXTRACT_AND_RUN=1` permits bundler AppImages to
@@ -157,13 +205,15 @@ machine. Do not move an already published tag to retry a release.
    as `desktop-bundles-windows-x64`, `desktop-bundles-linux-x64`,
    `desktop-bundles-macos-arm64`, and `desktop-bundles-macos-x64`. CI artifacts
    last 14 days. No Tauri release inputs or token are provided to the action.
-   Each job also builds `texgo-engine` with `--no-default-features --features
-   automation --bin texgo-engine --release --locked` for its target. That binary
-   has no GUI runtime dependency and is archived with API documentation,
-   project schema and editor examples as
+   Each desktop installer already contains the headless CLI; there is no second
+   installation step. For compatibility and CLI-only users, CI also archives
+   the same prebuilt no-GUI engine with API documentation, project schema and
+   editor examples as
    `texgo-engine_<version>_<platform>_<arch>.zip` (Windows) or `.tar.gz` (Unix).
-7. For desktop tag pushes only, the final job downloads **all four** artifact
-   directories without merging them. It rejects missing/unexpected platforms,
+   These archives remain in the release set but are optional downloads, not a
+   dependency of the desktop installer.
+7. For desktop tag pushes only, the final job downloads
+   **all four** artifact directories without merging them. It rejects missing/unexpected platforms,
    unrecognized extensions, wrong version/platform prefixes, empty files and
    duplicate filenames. Required formats are Windows `.exe`, Linux `.deb` plus
    `.AppImage`, and one or more `.dmg` files for **each** macOS architecture.
@@ -177,11 +227,12 @@ machine. Do not move an already published tag to retry a release.
    exposed only after the complete upload succeeds. Existing releases are never
    updated or clobbered. No updater feed or update signatures are published.
 
-The version and filename checks validate release routing, not executable CPU
-headers or installer runtime behavior. Apart from the limited Linux startup
-liveness check and the real Linux automation fixture, native installation and
-GUI workflows still require separate platform QA. The automation fixture does
-not establish every TeX distribution or editor integration works identically.
+Filename checks validate release routing; the separate packaged-engine checks
+validate CPU headers and headless execution on matching hosts. Windows silent
+installation, macOS DMG copy and Linux payload extraction have different scopes.
+Native GUI workflows, Gatekeeper/SmartScreen behavior and every supported TeX
+distribution/editor still require separate platform QA. Browser fixture tests
+and CLI smoke checks are not evidence that the redesigned native UI is accepted.
 
 ## Integrity and Installation
 
@@ -204,6 +255,91 @@ Windows NSIS installers require a supported Windows/WebView2 environment. Linux
 permission and a compatible runtime. macOS DMGs are architecture-specific.
 These outputs are not claimed to be locally installed or launch-verified.
 The application and release source use the [MIT license](../LICENSE).
+
+## One Install, GUI and CLI
+
+Install the desktop package once. It contains both the Texgo GUI and the
+headless `texgo-engine` CLI/JSON-RPC process; a second engine archive is not
+required. A TeX distribution (`latexmk` and the configured TeX engine) remains
+an external prerequisite for document compilation. This does not replace or
+install the separate Go `texgo` command from the legacy CLI release workflow.
+
+| Desktop format | Bundled CLI after installation |
+| --- | --- |
+| macOS DMG | `/Applications/Texgo.app/Contents/MacOS/texgo-engine` when the app is copied to `/Applications` |
+| Windows NSIS | `<chosen install directory>\texgo-engine.exe`; the default current-user location is `%LOCALAPPDATA%\Texgo\texgo-engine.exe` |
+| Linux Debian | `/usr/bin/texgo-engine`, installed alongside `/usr/bin/texgo-desktop` by the package manager |
+| Linux AppImage | `squashfs-root/usr/bin/texgo-engine` after extracting the same downloaded AppImage |
+
+On macOS the sidecar is in **`Contents/MacOS`**, not `Contents/Resources`.
+Moving or deleting the app moves or removes the engine too. NSIS uses Tauri's
+standard `currentUser` install mode and external-binary installation/removal;
+both executables are in the same chosen directory and removed together. No
+custom installer hooks, symlinks, shell profile edits or PATH registry writes
+are added. Tauri documents [NSIS install modes](https://v2.tauri.app/distribute/windows-installer/#install-modes).
+Only Debian naturally exposes the command on the usual system PATH. On other
+formats use the full path below or opt into your own user-managed PATH setup.
+
+```sh
+# macOS, after dragging Texgo.app into /Applications:
+"/Applications/Texgo.app/Contents/MacOS/texgo-engine" --help
+
+# Debian, after installing the desktop .deb:
+/usr/bin/texgo-engine --help
+
+# AppImage: extract the same desktop download, not a second engine archive.
+# Replace the filename with your download, from a persistent directory.
+chmod +x ./Texgo.AppImage
+./Texgo.AppImage --appimage-extract
+./squashfs-root/usr/bin/texgo-engine --help
+```
+
+```powershell
+# Windows default; substitute the chosen directory after a custom install:
+& "$env:LOCALAPPDATA\Texgo\texgo-engine.exe" --help
+```
+
+AppImage is portable, not a system installer: double-clicking it starts the GUI
+but does not create a permanent CLI command on PATH. For a stable editor path,
+keep its extracted tree in a persistent location. Replace that whole tree when
+updating the AppImage and retain the same absolute engine path. Debian is the
+one-package system-install option on Linux. Do not use transient `/tmp/.mount_*`
+AppImage mount paths in editor settings.
+
+### VS Code Uses the Bundled Engine
+
+The existing `examples/vscode` tasks and LaTeX Workshop settings default to
+`"command": "texgo-engine"`, which assumes PATH. After copying the example into
+your workspace, change **both** task commands (`Texgo: build`, `Texgo: watch`)
+in `.vscode/tasks.json`, and the `texgo-engine` tool's `command` in
+`.vscode/settings.json`, to the installed engine's **absolute path**. Preserve
+the existing `args`, recipe, watch matcher and output directory. Example JSON
+command properties (choose one):
+
+```json
+"command": "/Applications/Texgo.app/Contents/MacOS/texgo-engine"
+```
+
+```json
+"command": "C:\\Users\\alice\\AppData\\Local\\Texgo\\texgo-engine.exe"
+```
+
+```json
+"command": "/usr/bin/texgo-engine"
+```
+
+For extracted AppImages use, for example,
+`/home/alice/Applications/Texgo/squashfs-root/usr/bin/texgo-engine`. These are
+process/tool executable paths: do not embed shell quotes in the JSON string,
+add `--help` to the command, or use `%LOCALAPPDATA%`/`~` expecting shell expansion.
+Use the real user/chosen installation directory. Task/Workshop arguments remain
+separate JSON array entries, so paths with spaces work without shell quoting.
+Build tasks can use `run`/`watch`; stateful integrations start the same executable
+with `rpc` over NDJSON stdin/stdout. See [API docs](api.md),
+[project schema](project.schema.json) and the [editor example](../examples/vscode/).
+Installing or updating the desktop app updates the engine at the same location;
+edit the commands only when you move the installation. Uninstalling the app
+invalidates those paths. Editor GUI behavior is not verified by headless CI.
 
 ## Signing Status and Optional Follow-Up
 
@@ -235,9 +371,10 @@ and [Windows signing guide](https://v2.tauri.app/distribute/sign/windows/).
 
 ## Failure Recovery
 
-Any failed frontend, browser, Rust-test, packaging or completeness check prevents
-the publish job. Fix the source and repeat branch CI before tagging a new
-version. Matrix fail-fast is disabled to retain diagnostics from other targets.
+Any failed frontend, browser, Rust-test, packaging, packaged-engine or completeness
+check prevents publication. Fix the source and repeat branch CI and UI QA before
+tagging a new version. Matrix fail-fast is disabled to retain diagnostics from
+other targets.
 
 If upload/publication fails after draft creation, a draft can remain; it is not
 a public partial release. Inspect the run's complete release artifact, then have
