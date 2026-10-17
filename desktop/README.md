@@ -5,6 +5,11 @@ CLI: React/Vite in this directory, and Tauri 2 with the `texgo-desktop` Rust cra
 in `src-tauri/`.
 Its initial version is `0.2.0`. The repository's [MIT license](../LICENSE) applies.
 
+The same release includes a standalone `texgo-engine` archive for developers.
+It runs without a GUI and provides CLI automation, newline JSON-RPC 2.0,
+versioned project configuration, and VS Code build/watch task examples.
+See [API integration](../docs/api.md) and the [project JSON schema](../docs/project.schema.json).
+
 ## CI and Downloads
 
 The [Desktop workflow](../.github/workflows/desktop.yml) runs on pushes to `main`
@@ -19,11 +24,16 @@ Branch, PR, and manual runs provide downloadable workflow artifacts instead.
 | macOS Apple Silicon | `aarch64-apple-darwin` | `.dmg` |
 | macOS Intel | `x86_64-apple-darwin` | `.dmg` |
 
-Installers are named
+Desktop installers are named
 `texgo-desktop_<version>_<platform>_<arch>__<original-installer-name>`.
 Use `macos-arm64` for Apple Silicon and `macos-x64` for Intel. Releases include
 `SHA256SUMS` for all installers; workflow artifacts expire, release assets do not
 have the workflow's retention period.
+
+Engine archives are named `texgo-engine_<version>_<platform>_<arch>.zip` on
+Windows and `.tar.gz` on macOS/Linux. They contain the executable, API guide,
+configuration schema, license and editor examples. They require no WebView.
+Document compilation additionally requires a locally installed LaTeX toolchain.
 
 Windows builds are unsigned and can trigger SmartScreen or enterprise-policy
 blocks. macOS builds are ad-hoc signed only, not Developer ID signed or notarized;
@@ -42,7 +52,7 @@ npm test
 npm run build
 
 # Working directory: repository root, on Linux, Windows and macOS
-cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --locked
+cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --features automation --locked
 ```
 
 CI creates a missing `package-lock.json` remotely and uploads it as

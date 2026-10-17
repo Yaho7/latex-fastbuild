@@ -60,8 +60,8 @@ machine. Do not move an already published tag to retry a release.
    into `desktop/` and use `npm ci`, rather than resolve their own versions.
 2. Stable Rust generates `desktop/src-tauri/Cargo.lock` only when absent; the
    `desktop-cargo-lock` artifact supplies that exact lockfile to later jobs.
-   Tests and packages use `--locked`. Generated lockfiles remain in CI, not in
-   the repository. A committed lockfile is preserved instead of regenerated.
+   Tests and packages use `--locked`. The initial runner-generated application
+   lockfiles are now committed. A committed lockfile is preserved instead of regenerated.
    Both `desktop-npm-lock` and `desktop-cargo-lock` are retained for 14 days;
    maintainers can download, review, and commit the files as
    `desktop/package-lock.json` and `desktop/src-tauri/Cargo.lock` without any
@@ -83,10 +83,16 @@ machine. Do not move an already published tag to retry a release.
 4. Ubuntu 22.04, Windows Server 2022, and macOS 14 each run:
 
    ```sh
-   cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --locked
+   cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --features automation --locked
    ```
 
-5. Only after frontend/browser QA and the entire Rust test matrix pass, the
+5. A separate Ubuntu integration job installs test-only `latexmk` and pdfLaTeX,
+   runs the headless pipeline on PNG/SVG fixtures, compiles a real document with
+   SyncTeX, verifies repeat runs do not rewrite references, and modifies an
+   original SVG to verify regeneration after replacement. Proof is uploaded as
+   `desktop-automation-integration`. The frontend gate also validates the JSON
+   configuration schema and VS Code example. Only after these checks,
+   frontend/browser QA and the entire Rust test matrix pass, the
    official [`tauri-apps/tauri-action@v1`](https://github.com/tauri-apps/tauri-action)
    builds the four packages. Each packaging job first runs the following in
    `desktop/`, after downloading `desktop-npm-lock` and running `npm ci`, and
@@ -106,10 +112,10 @@ machine. Do not move an already published tag to retry a release.
    equivalent to the following commands in `desktop/`:
 
    ```sh
-   npx tauri build --target x86_64-pc-windows-msvc --bundles nsis -- --locked
-   npx tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage -- --locked
-   npx tauri build --target aarch64-apple-darwin --bundles dmg -- --locked
-   npx tauri build --target x86_64-apple-darwin --bundles dmg -- --locked
+   npx tauri build --target x86_64-pc-windows-msvc --bundles nsis -- --locked --bin texgo-desktop
+   npx tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage -- --locked --bin texgo-desktop
+   npx tauri build --target aarch64-apple-darwin --bundles dmg -- --locked --bin texgo-desktop
+   npx tauri build --target x86_64-apple-darwin --bundles dmg -- --locked --bin texgo-desktop
    ```
 
    The `--` separator forwards Cargo's `--locked` flag through Tauri.
@@ -151,12 +157,18 @@ machine. Do not move an already published tag to retry a release.
    as `desktop-bundles-windows-x64`, `desktop-bundles-linux-x64`,
    `desktop-bundles-macos-arm64`, and `desktop-bundles-macos-x64`. CI artifacts
    last 14 days. No Tauri release inputs or token are provided to the action.
+   Each job also builds `texgo-engine` with `--no-default-features --features
+   automation --bin texgo-engine --release --locked` for its target. That binary
+   has no GUI runtime dependency and is archived with API documentation,
+   project schema and editor examples as
+   `texgo-engine_<version>_<platform>_<arch>.zip` (Windows) or `.tar.gz` (Unix).
 7. For desktop tag pushes only, the final job downloads **all four** artifact
    directories without merging them. It rejects missing/unexpected platforms,
    unrecognized extensions, wrong version/platform prefixes, empty files and
    duplicate filenames. Required formats are Windows `.exe`, Linux `.deb` plus
    `.AppImage`, and one or more `.dmg` files for **each** macOS architecture.
    All collected installers are included, not just the first matching file.
+   Every platform must also provide its standalone engine archive.
 8. The final job calculates `SHA256SUMS`, runs `sha256sum --check SHA256SUMS`, and
    archives the complete set as `desktop-release-<version>` for 30 days. It then
    runs `gh release create <tag> release/* --verify-tag --draft --latest=false`
@@ -167,8 +179,9 @@ machine. Do not move an already published tag to retry a release.
 
 The version and filename checks validate release routing, not executable CPU
 headers or installer runtime behavior. Apart from the limited Linux startup
-liveness check, native installation/launch and actual TeX-to-PDF workflows still
-require separate platform QA.
+liveness check and the real Linux automation fixture, native installation and
+GUI workflows still require separate platform QA. The automation fixture does
+not establish every TeX distribution or editor integration works identically.
 
 ## Integrity and Installation
 

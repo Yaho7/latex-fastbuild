@@ -10,24 +10,34 @@
 
 ## 1. Processing Core
 
-- [ ] Add regression tests in `desktop/src-tauri/tests/core.rs` for recursive input/include scanning, graphics paths, comments, Unicode paths, duplicate references, missing files, PDF conversion, cache invalidation, replacement conflicts and undo.
-- [ ] Implement `models.rs`, `scanner.rs`, `conversion.rs`, `transaction.rs` and `workspace.rs`; keep source images intact and limit source edits to resolved project files.
-- [ ] Add feature-gated Tauri commands and configuration; pure core tests run with `cargo test --no-default-features` in CI.
-- [ ] Review the scoped diff and commit the processing core.
+- [x] Add regression tests in `desktop/src-tauri/tests/core.rs` for recursive input/include scanning, graphics paths, comments, Unicode paths, duplicate references, missing files, PDF conversion, cache invalidation, replacement conflicts and undo.
+- [x] Implement `models.rs`, `scanner.rs`, `conversion.rs`, `transaction.rs` and `workspace.rs`; keep source images intact and limit source edits to resolved project files.
+- [x] Add feature-gated Tauri commands and configuration; pure core tests run without GUI features in CI.
+- [x] Review the scoped diff and commit the processing core. Cloud core tests passed on all three operating systems before the automation additions.
 
 ## 2. Workbench
 
-- [ ] Implement file selection, project scanning, image filtering and selection, quality controls, source/PDF previews, progress and cancellation.
-- [ ] Add replacement review and undo, with errors surfaced in Chinese.
-- [ ] Add focused frontend tests and defer execution to Actions.
-- [ ] Review the scoped diff and commit the workbench.
+- [x] Implement file selection, project scanning, image filtering and selection, quality controls, source/PDF previews, progress and cancellation.
+- [x] Add replacement review and undo, with errors surfaced in Chinese.
+- [x] Add focused frontend tests; cloud typecheck, tests and browser fixture QA passed.
+- [x] Review the scoped diff and commit the workbench.
+- [x] Apply the requested Apple-inspired visual redesign.
+- [ ] Verify redesigned workbench screenshots on GitHub Actions.
 
 ## 3. Cloud Verification and Release
 
-- [ ] Add `desktop.yml`: frontend checks/tests, Rust tests on all three operating systems, Windows x64, Linux x64, macOS arm64 and x64 bundles.
-- [ ] Publish `desktop-v*` tags only after every packaging job succeeds; attach installers and SHA256 checksums to GitHub Releases.
-- [ ] Document installation, quality semantics, scope limitations, release triggers and signing requirements.
+- [x] Add `desktop.yml`: frontend checks/tests, Rust tests on all three operating systems, Windows x64, Linux x64, macOS arm64 and x64 bundles.
+- [x] Configure `desktop-v*` publication only after every packaging job succeeds, with installers and SHA256 checksums.
+- [x] Document installation, quality semantics, scope limitations, release triggers and signing requirements.
 - [ ] Push the desktop branch, inspect Actions results, fix failures through code commits, then tag and verify the first desktop Release.
+
+## 4. Headless Developer Integration (Added by User)
+
+- [ ] Add independent `texgo-engine` executable with scan, conversion/build pipeline, watch and newline JSON-RPC 2.0.
+- [ ] Add versioned project JSON configuration, structured build results, concise diagnostics and complete captured logs.
+- [ ] Supply VS Code build/watch tasks and documentation; source replacement requires an explicit flag or confirmation field.
+- [ ] Persist generated-PDF-to-source mappings so background runs update edited original images after reference replacement.
+- [ ] Test headless operations on Actions and publish engine archives alongside desktop installers.
 
 ## Acceptance
 

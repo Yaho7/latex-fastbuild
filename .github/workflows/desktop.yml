@@ -101,6 +101,21 @@ jobs:
           retention-days: 14
       - name: Typecheck
         run: npm run check
+      - name: Validate editor project schema and examples
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema==4.23.0
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          schema = json.loads(Path('../docs/project.schema.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          validator = Draft202012Validator(schema)
+          for root in [Path('../examples/vscode'), Path('../tests/fixtures/editor-project')]:
+              for path in root.rglob('project.json'):
+                  validator.validate(json.loads(path.read_text()))
+          json.loads(Path('../examples/vscode/.vscode/tasks.json').read_text())
+          PY
       - name: Frontend unit tests
         run: npm test
       - name: Build frontend
@@ -176,11 +191,74 @@ jobs:
           key: core-${{ matrix.os }}
           cache-on-failure: true
       - name: Test pure Rust core, including integration tests
-        run: cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --locked
+        run: cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --features automation --locked
+
+  integration:
+    name: Real LaTeX automation integration
+    needs: core
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-cargo-lock
+          path: desktop/src-tauri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: core-ubuntu-22.04
+          cache-on-failure: true
+      - name: Install test-only LaTeX on the runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y latexmk texlive-latex-base poppler-utils
+      - name: Convert, replace, compile and repeat without rewriting references
+        run: |
+          project=tests/fixtures/editor-project
+          mkdir -p automation-proof
+          cp cmd/texgo/template-assets/logo.png "$project/figures/logo.png"
+          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/first.json
+          cp "$project/main.tex" automation-proof/after-first.tex
+          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/repeated.json
+          cmp "$project/main.tex" automation-proof/after-first.tex
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('automation-proof').glob('*.json'):
+              json.loads(path.read_text())
+          source = Path('tests/fixtures/editor-project/main.tex').read_text()
+          assert 'texgo-pdf/' in source
+          assert '{figures/logo.png}' not in source
+          assert '{figures/plot.svg}' not in source
+          path = Path('tests/fixtures/editor-project/figures/plot.svg')
+          path.write_text(path.read_text().replace('#007aff', '#28a745'))
+          PY
+          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/image-updated.json
+          if cmp -s "$project/main.tex" automation-proof/after-first.tex; then
+            echo 'Edited SVG did not update its generated PDF reference' >&2
+            exit 1
+          fi
+          test -s "$project/build/main.pdf"
+          test -s "$project/build/main.synctex.gz"
+          pdfinfo "$project/build/main.pdf"
+          cp "$project/build/main.pdf" automation-proof/
+          cp "$project/main.tex" automation-proof/after-image-update.tex
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-automation-integration
+          path: |
+            automation-proof/
+            tests/fixtures/editor-project/build/*.log
+          if-no-files-found: warn
 
   package:
     name: Package ${{ matrix.platform }}-${{ matrix.arch }}
-    needs: [frontend, core]
+    needs: [frontend, core, integration]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -263,7 +341,7 @@ jobs:
         with:
           projectPath: desktop
           tauriScript: npx tauri
-          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked --bin texgo-desktop
           uploadWorkflowArtifacts: false
           uploadUpdaterJson: false
       - name: Linux native startup liveness only (not GUI functionality)
@@ -303,6 +381,25 @@ jobs:
           path: desktop-native-smoke/
           if-no-files-found: warn
           retention-days: 14
+      - name: Build standalone automation engine without GUI features
+        run: cargo build --manifest-path desktop/src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target ${{ matrix.target }}
+      - name: Smoke-test the standalone JSON-RPC entry point
+        if: runner.os != 'macOS' || (runner.arch == 'ARM64' && matrix.arch == 'arm64') || (runner.arch == 'X64' && matrix.arch == 'x64')
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          extension=''
+          if [ "$RUNNER_OS" = Windows ]; then extension='.exe'; fi
+          binary="$GITHUB_WORKSPACE/desktop/src-tauri/target/$TARGET/release/texgo-engine$extension"
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools.info"}' | "$binary" rpc > engine-info.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          response = json.loads(Path('engine-info.json').read_text())
+          assert response['id'] == 1
+          assert response['result']['name'] == 'texgo-engine'
+          assert 'pipeline.run' in response['result']['methods']
+          PY
       - name: Collect every requested installer with a unique platform name
         env:
           VERSION: ${{ needs.frontend.outputs.version }}
@@ -311,7 +408,7 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           python - <<'PY'
-          import os, shutil
+          import json, os, shutil, tarfile, zipfile
           from pathlib import Path
 
           platform = os.environ['PLATFORM']
@@ -336,6 +433,27 @@ jobs:
                       raise SystemExit(f'Duplicate installer: {target}')
                   shutil.copy2(source, target)
                   print(target)
+          executable = 'texgo-engine.exe' if platform == 'windows' else 'texgo-engine'
+          binary = root.parent / executable
+          if not binary.is_file() or binary.stat().st_size == 0:
+              raise SystemExit(f'Missing standalone automation engine: {binary}')
+          base = f'texgo-engine_{os.environ["VERSION"]}_{platform}_{os.environ["ARCH"]}'
+          files = [(binary, executable), (Path('LICENSE'), 'LICENSE'), (Path('docs/api.md'), 'api.md'), (Path('docs/project.schema.json'), 'project.schema.json')]
+          editor = Path('engine-editor-template')
+          shutil.copytree('examples/vscode', editor)
+          config_path = editor / '.texgo/project.json'
+          config = json.loads(config_path.read_text())
+          config['$schema'] = '../project.schema.json'
+          config_path.write_text(json.dumps(config, indent=2) + '\n')
+          files += [(source, str(source.relative_to(editor))) for source in editor.rglob('*') if source.is_file()]
+          if platform == 'windows':
+              with zipfile.ZipFile(destination / (base + '.zip'), 'w', zipfile.ZIP_DEFLATED) as archive:
+                  for source, name in files:
+                      archive.write(source, name)
+          else:
+              with tarfile.open(destination / (base + '.tar.gz'), 'w:gz') as archive:
+                  for source, name in files:
+                      archive.add(source, arcname=name)
           PY
       - name: Upload installers (no GitHub Release yet)
         uses: actions/upload-artifact@v4
@@ -384,18 +502,25 @@ jobs:
               platform, arch = key.split('-')
               prefix = f'texgo-desktop_{os.environ["VERSION"]}_{platform}_{arch}__'
               found = set()
+              engine = f'texgo-engine_{os.environ["VERSION"]}_{platform}_{arch}' + ('.zip' if platform == 'windows' else '.tar.gz')
+              engine_found = False
               for source in sorted((root / f'desktop-bundles-{key}').iterdir()):
                   if (not source.is_file() or source.is_symlink() or source.stat().st_size == 0
-                      or not source.name.startswith(prefix) or source.suffix not in suffixes
+                      or not ((source.name.startswith(prefix) and source.suffix in suffixes) or source.name == engine)
                       or any(c in source.name for c in '\r\n\\')):
                       raise SystemExit(f'Unexpected installer: {source}')
                   target = release / source.name
                   if target.exists():
                       raise SystemExit(f'Duplicate release filename: {source.name}')
                   shutil.copy2(source, target)
-                  found.add(source.suffix)
+                  if source.name == engine:
+                      engine_found = True
+                  else:
+                      found.add(source.suffix)
               if found != suffixes:
                   raise SystemExit(f'Missing installer formats for {key}: {suffixes - found}')
+              if not engine_found:
+                  raise SystemExit(f'Missing standalone engine for {key}')
           with (release / 'SHA256SUMS').open('w', encoding='ascii') as sums:
               for path in sorted(release.iterdir()):
                   if path.name != 'SHA256SUMS':
