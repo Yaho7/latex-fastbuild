@@ -245,6 +245,7 @@ jobs:
           test -s "$project/build/main.pdf"
           test -s "$project/build/main.synctex.gz"
           pdfinfo "$project/build/main.pdf"
+          pdftoppm -png -scale-to 1400 -singlefile "$project/build/main.pdf" automation-proof/compiled-document
           cp "$project/build/main.pdf" automation-proof/
           cp "$project/main.tex" automation-proof/after-image-update.tex
       - uses: actions/upload-artifact@v4
