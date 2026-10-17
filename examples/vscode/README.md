@@ -7,6 +7,19 @@ Run **Tasks: Run Build Task** to execute the named default task **Texgo: build**
 or **Tasks: Run Task → Texgo: watch** for a persistent background build. Stop it
 with **Tasks: Terminate Task**. No task starts on folder open.
 
+The optional `.vscode/settings.json` also connects LaTeX Workshop to the same
+Texgo recipe, enables build-on-save, and points its PDF viewer at `build/`.
+The extension is recommended by `.vscode/extensions.json`. When using this
+build-on-save route, leave the separate watch task stopped to avoid duplicate
+build controllers. Keep Workshop's `latex.outDir` aligned with `build.outputDir`
+if you customize the project configuration. Build magic comments are disabled
+so `TeX program` comments cannot bypass the Texgo recipe; configure the engine
+in `.texgo/project.json` instead.
+
+The configuration follows the extension's official
+[compile recipe documentation](https://github.com/James-Yu/LaTeX-Workshop/wiki/Compile)
+and [PDF viewer documentation](https://github.com/James-Yu/LaTeX-Workshop/wiki/View).
+
 `.texgo/project.json` resolves `../main.tex` against the config directory and
 `build` against the main document directory. The example explicitly sets
 `images.replace:true`: the initial build converts the SVG and replaces its TeX
@@ -22,5 +35,7 @@ your config (for example `../project.schema.json` if placed beside `.texgo`).
 
 Results go to `build/main.pdf`; full captured compiler output goes to
 `build/main.texgo-output.log` independently of TeX's native `build/main.log`.
-Errors and warnings appear in VS Code's Problems panel. See `docs/api.md` for
+Task errors and warnings appear in VS Code's Problems panel. Workshop uses its
+own log/output handling; its GUI integration has not been exercised by the
+headless CI fixture. See `docs/api.md` for
 the CLI, JSON result contracts, and stateful JSON-RPC integration.

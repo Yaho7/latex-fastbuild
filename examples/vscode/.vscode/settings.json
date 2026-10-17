@@ -1,0 +1,17 @@
+{
+  "latex-workshop.latex.tools": [
+    {
+      "name": "texgo-engine",
+      "command": "texgo-engine",
+      "args": ["run", "--config", "%DIR%/.texgo/project.json"]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    { "name": "Texgo", "tools": ["texgo-engine"] }
+  ],
+  "latex-workshop.latex.recipe.default": "first",
+  "latex-workshop.latex.build.enableMagicComments": false,
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.outDir": "%DIR%/build",
+  "latex-workshop.view.pdf.viewer": "tab"
+}

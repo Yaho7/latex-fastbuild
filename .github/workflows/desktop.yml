@@ -114,7 +114,8 @@ jobs:
           for root in [Path('../examples/vscode'), Path('../tests/fixtures/editor-project')]:
               for path in root.rglob('project.json'):
                   validator.validate(json.loads(path.read_text()))
-          json.loads(Path('../examples/vscode/.vscode/tasks.json').read_text())
+          for path in Path('../examples/vscode/.vscode').glob('*.json'):
+              json.loads(path.read_text())
           PY
       - name: Frontend unit tests
         run: npm test
