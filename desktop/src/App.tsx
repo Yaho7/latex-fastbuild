@@ -3,7 +3,15 @@ import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Check, FileCode2, FolderOpen, LoaderCircle, RefreshCw, Square, TriangleAlert, X } from "lucide-react";
+import { Check, ChevronRight, FileCode2, FolderOpen, Images, LoaderCircle, RefreshCw, Square, TriangleAlert, X } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import IconButton from "./IconButton";
 import AssetList from "./AssetList";
 import AssetPreview from "./AssetPreview";
 import ConversionPanel, { conversionOptions, settingsError } from "./ConversionPanel";
@@ -34,8 +42,7 @@ export default function App() {
   const cancelRef = useRef(false);
   const [review, setReview] = useState<ChangePreview | null>(null);
   const [revision, setRevision] = useState(0);
-  const [assetsWidth, setAssetsWidth] = useState(360);
-  const [settingsWidth, setSettingsWidth] = useState(272);
+  const [assetsWidth, setAssetsWidth] = useState(800);
   const busy = operation !== null;
 
   async function execute(kind: Operation, action: () => Promise<void>) {
@@ -152,30 +159,32 @@ export default function App() {
   const canReview = Object.values(results).some((result) => result.pdfPath && !result.error);
   const missingCount = project?.images.filter((image) => image.status === "missing").reduce((sum, image) => sum + image.references.length, 0) ?? 0;
   const progressValue = progress && progress.total > 0 ? Math.min(100, Math.max(0, progress.current / progress.total * 100)) : 0;
-  const layoutStyle = { "--assets-width": `${assetsWidth}px`, "--settings-width": `${settingsWidth}px` } as CSSProperties;
+  const layoutStyle = { "--assets-width": `${assetsWidth}px` } as CSSProperties;
 
-  return <div className="app-shell">
+  return <TooltipProvider delayDuration={350}><div className="app-shell">
     <div className="workbench" inert={review !== null}>
       <header className="app-toolbar">
-        <div className="brand"><FileCode2 size={26} strokeWidth={1.6} aria-hidden="true" /><span>Texgo</span><span className="version">0.2.0</span></div>
-        <span className="toolbar-divider" />
-        <div className="project-title"><strong title={project?.mainFile}>{project ? fileName(project.mainFile) : "LaTeX 图片工作台"}</strong>{project && <span title={project.root}>{project.root}</span>}</div>
-        <div className="toolbar-actions"><button className="button toolbar-open" title="打开文件" disabled={busy} onClick={openProject}><FolderOpen size={18} strokeWidth={1.7} aria-hidden="true" />打开文件</button><button className="icon-button" aria-label="重新扫描" title="重新扫描" disabled={busy || !project} onClick={() => { if (project) void execute("opening", () => loadProject(project.mainFile)); }}><RefreshCw size={18} strokeWidth={1.7} aria-hidden="true" /></button></div>
+        <div className="brand"><span className="brand-mark"><FileCode2 aria-hidden="true" /></span><span>Texgo</span><Badge variant="secondary">0.2.0</Badge></div>
+        <ChevronRight className="project-chevron" aria-hidden="true" />
+        <div className="project-title"><strong title={project?.mainFile}>{project ? fileName(project.mainFile) : "工作台"}</strong></div>
+        <div className="toolbar-actions"><IconButton label="重新扫描" disabled={busy || !project} onClick={() => { if (project) void execute("opening", () => loadProject(project.mainFile)); }}><RefreshCw aria-hidden="true" /></IconButton><Separator orientation="vertical" className="h-5" /><Button variant="outline" size="sm" disabled={busy} onClick={openProject}><FolderOpen data-icon="inline-start" aria-hidden="true" />打开文件</Button></div>
       </header>
-      {error && !review && <div className="error-banner" role="alert"><TriangleAlert size={17} aria-hidden="true" /><span>{error}</span><button className="icon-button" aria-label="关闭错误提示" title="关闭错误提示" onClick={() => setError(null)}><X size={16} aria-hidden="true" /></button></div>}
-      {project && (missingCount > 0 || project.warnings.length > 0) && <details className="project-warnings"><summary><TriangleAlert size={15} aria-hidden="true" /><span>{missingCount > 0 ? `${missingCount} 个图片引用缺失` : "项目扫描警告"}</span>{project.warnings.length > 0 && <span className="warning-count">{project.warnings.length} 条警告</span>}</summary><ul>{project.warnings.map((warning, index) => <li key={index}>{warning}</li>)}{missingCount > 0 && project.warnings.length === 0 && project.images.filter((image) => image.status === "missing").map((image) => <li key={image.id}>{image.relativePath}：{image.message || "文件不存在"}</li>)}</ul></details>}
-      {!project ? <main className="empty-workspace"><div className="empty-content"><FileCode2 size={68} strokeWidth={1.1} aria-hidden="true" /><h1>尚未打开项目</h1><span className="file-extension">.tex</span><button className="button primary" disabled={busy} onClick={openProject}>{busy ? <LoaderCircle size={17} className="spin" aria-hidden="true" /> : <FolderOpen size={18} aria-hidden="true" />}打开主文件</button></div></main> : <main className="workspace-grid" style={layoutStyle}>
+      {error && !review && <Alert variant="destructive" className="workbench-alert"><TriangleAlert aria-hidden="true" /><AlertTitle>操作未完成</AlertTitle><AlertDescription className="flex items-start justify-between gap-4"><span>{error}</span><IconButton label="关闭错误提示" onClick={() => setError(null)}><X aria-hidden="true" /></IconButton></AlertDescription></Alert>}
+      {!project ? <main className="empty-workspace"><Empty><EmptyHeader><EmptyMedia variant="icon"><FileCode2 /></EmptyMedia><EmptyTitle>尚未打开项目</EmptyTitle></EmptyHeader><EmptyContent><Button disabled={busy} onClick={openProject}>{busy ? <LoaderCircle data-icon="inline-start" className="animate-spin" aria-hidden="true" /> : <FolderOpen data-icon="inline-start" aria-hidden="true" />}打开主文件</Button></EmptyContent></Empty></main> : <>
+      <section className="project-heading"><div><div className="workspace-title"><Images aria-hidden="true" /><h1>图片资源</h1><Badge variant="secondary">{project.images.length}</Badge></div><p title={project.root}>{project.root}</p></div><span className="project-file-count">{project.texFiles.length} 个 TeX 文件</span></section>
+      {project && (missingCount > 0 || project.warnings.length > 0) && <Alert className="workbench-alert scan-alert"><TriangleAlert aria-hidden="true" /><AlertTitle>{missingCount > 0 ? `${missingCount} 个图片引用缺失` : "项目扫描警告"}</AlertTitle><AlertDescription><details><summary>{project.warnings.length || missingCount} 条警告</summary><ul>{project.warnings.map((warning, index) => <li key={index}>{warning}</li>)}{missingCount > 0 && project.warnings.length === 0 && project.images.filter((image) => image.status === "missing").map((image) => <li key={image.id}>{image.relativePath}：{image.message || "文件不存在"}</li>)}</ul></details></AlertDescription></Alert>}
+      <main className="workspace-grid" style={layoutStyle}>
         <AssetList images={visibleImages} total={project.images.length} selected={selected} activeId={activeId} results={results} busy={busy} search={search} filter={filter} onSearch={setSearch} onFilter={setFilter}
           onActivate={setActiveId}
           onSelect={(id) => { if (!busy) setSelected((previous) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; }); }}
           onSelectAll={(ids, select) => { if (!busy) setSelected((previous) => { const next = new Set(previous); ids.forEach((id) => { if (select) next.add(id); else next.delete(id); }); return next; }); }} />
-        <Splitter label="调整图片列表宽度" value={assetsWidth} min={280} max={560} onChange={setAssetsWidth} />
-        <AssetPreview key={`${revision}:${activeAsset?.id ?? "empty"}`} asset={activeAsset} result={activeAsset ? results[activeAsset.id] : undefined} revision={revision} />
-        <Splitter label="调整设置栏宽度" value={settingsWidth} min={240} max={380} reverse onChange={setSettingsWidth} />
+        <Splitter label="调整图片列表宽度" value={assetsWidth} min={380} max={1100} onChange={setAssetsWidth} />
+        <div className="asset-inspector"><AssetPreview key={`${revision}:${activeAsset?.id ?? "empty"}`} asset={activeAsset} result={activeAsset ? results[activeAsset.id] : undefined} revision={revision} />
         <ConversionPanel quality={quality} custom={custom} selectedCount={selected.size} busy={busy} converting={operation === "converting"} canReview={canReview} undoAvailable={project.undoAvailable} activeAsset={activeAsset} root={project.root} onQuality={setQuality} onCustom={setCustom} onConvert={convert} onReview={previewChanges} onUndo={() => replace(true)} />
-      </main>}
-      <footer className="status-bar"><div className="status-text" role="status" aria-live="polite">{busy ? <LoaderCircle size={14} className="spin" aria-hidden="true" /> : project ? <Check size={14} aria-hidden="true" /> : <span className="status-dot" />}<span>{operation ? cancelRequested ? "正在完成当前图片，随后取消" : operationLabels[operation] : notice}</span>{operation === "converting" && progress && <span className="progress-name" title={progress.name}>{progress.current} / {progress.total}　{progress.name}　{progress.status}</span>}</div>{operation === "converting" && <div className="progress-controls"><div className="progress-track" role="progressbar" aria-label="转换进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}><span style={{ width: `${progressValue}%` }} /></div><button className="button compact" aria-label="取消转换" disabled={cancelRequested} onClick={() => { void cancelConversion(); }}><Square size={12} aria-hidden="true" />{cancelRequested ? "等待取消" : "取消转换"}</button></div>}{!busy && project && <span className="status-file-count">{project.texFiles.length} 个 TeX 文件</span>}</footer>
+        </div>
+      </main></>}
+      <footer className="status-bar"><div className="status-text" role="status" aria-live="polite">{busy ? <LoaderCircle className="spin" aria-hidden="true" /> : project ? <Check aria-hidden="true" /> : <span className="status-dot" />}<span>{operation ? cancelRequested ? "正在完成当前图片，随后取消" : operationLabels[operation] : notice}</span>{operation === "converting" && progress && <span className="progress-name" title={progress.name}>{progress.current} / {progress.total}　{progress.name}　{progress.status}</span>}</div>{operation === "converting" && <div className="progress-controls"><Progress value={progressValue} aria-label="转换进度" className="w-28" /><Button variant="outline" size="sm" aria-label="取消转换" disabled={cancelRequested} onClick={() => { void cancelConversion(); }}><Square data-icon="inline-start" aria-hidden="true" />{cancelRequested ? "等待取消" : "取消转换"}</Button></div>}{!busy && project && <span className="status-file-count">{selected.size} 张已选</span>}</footer>
     </div>
     {review && project && <ReviewDialog preview={review} root={project.root} busy={busy} error={error} onClose={() => { if (!operationRef.current) { setReview(null); setError(null); } }} onApply={() => replace(false)} />}
-  </div>;
+  </div></TooltipProvider>;
 }

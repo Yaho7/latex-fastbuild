@@ -3,6 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { FileImage, LoaderCircle, TriangleAlert } from "lucide-react";
 import type { AssetPreviewData, ImageAsset, ImageResult } from "./types";
 import { errorMessage, formatBytes } from "./utils";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const PdfPreview = lazy(() => import("./PdfPreview").catch(() => ({ default: () => <p className="preview-error" role="alert">PDF 预览组件加载失败，请重新打开项目</p> })));
 
@@ -39,15 +43,15 @@ export default function AssetPreview({ asset, result, revision }: Props) {
 
   return (
     <section className="preview-panel" aria-label="图片预览">
-      <div className="preview-heading"><div className="preview-heading-copy"><h2>图片预览</h2><div className="preview-filename" title={showConverted ? result?.pdfPath ?? "" : asset?.path ?? ""}>{asset?.relativePath ?? "未选择图片"}</div></div><div className="segmented" role="group" aria-label="预览版本"><button aria-pressed={!showConverted} title="原图" onClick={() => setConverted(false)} disabled={!asset}>原图</button><button aria-pressed={showConverted} title="转换后" onClick={() => setConverted(true)} disabled={!hasConverted}>转换后</button></div></div>
+      <div className="preview-heading"><div className="preview-heading-copy"><h2>图片预览</h2><div className="preview-filename" title={showConverted ? result?.pdfPath ?? "" : asset?.path ?? ""}>{asset?.relativePath ?? "未选择图片"}</div></div><ToggleGroup type="single" value={showConverted ? "converted" : "original"} onValueChange={(value) => { if (value) setConverted(value === "converted"); }} variant="outline" size="sm" aria-label="预览版本"><ToggleGroupItem value="original" title="原图" disabled={!asset}>原图</ToggleGroupItem><ToggleGroupItem value="converted" title="转换后" disabled={!hasConverted}>转换后</ToggleGroupItem></ToggleGroup></div>
       <div className="preview-surface" aria-busy={loading}>
-        {loading && <div className="preview-placeholder" role="status"><LoaderCircle size={23} className="spin" aria-hidden="true" /><span>正在载入预览</span></div>}
+        {loading && <div className="preview-placeholder" role="status"><Skeleton className="h-36 w-4/5" /><span>正在载入预览</span></div>}
         {!loading && error && <div className="preview-placeholder preview-error" role="alert"><TriangleAlert size={24} aria-hidden="true" /><span>{error}</span></div>}
-        {!loading && !error && unavailable && <div className="preview-placeholder"><FileImage size={32} strokeWidth={1.3} aria-hidden="true" /><span>{asset ? asset.message || "此图片暂不可预览" : "未选择图片"}</span></div>}
+        {!loading && !error && unavailable && <Empty><EmptyHeader><EmptyMedia variant="icon"><FileImage /></EmptyMedia><EmptyTitle>{asset ? asset.message || "此图片暂不可预览" : "未选择图片"}</EmptyTitle></EmptyHeader></Empty>}
         {!loading && !error && preview?.kind === "image" && <div className="image-stage"><img src={preview.data} alt={`${showConverted ? "转换后" : "原始"}：${asset?.relativePath ?? ""}`} onError={() => setError("图片无法显示")} /></div>}
         {!loading && !error && preview?.kind === "pdf" && <Suspense fallback={<div className="preview-placeholder"><LoaderCircle size={23} className="spin" aria-hidden="true" /><span>正在载入 PDF</span></div>}><PdfPreview key={`${assetId}:${showConverted}:${revision}`} data={preview.data} label={asset?.relativePath ?? "PDF"} /></Suspense>}
       </div>
-      <div className="preview-metadata"><span>{showConverted ? "PDF" : asset?.format.toUpperCase() ?? "无图片"}</span>{!showConverted && asset?.width && asset.height ? <span>{asset.width} × {asset.height} px</span> : null}<span>{asset ? formatBytes(showConverted ? result?.bytes ?? null : asset.bytes) : ""}</span></div>
+      <div className="preview-metadata"><Badge variant="outline">{showConverted ? "PDF" : asset?.format.toUpperCase() ?? "无图片"}</Badge>{!showConverted && asset?.width && asset.height ? <span>{asset.width} × {asset.height} px</span> : null}<span>{asset ? formatBytes(showConverted ? result?.bytes ?? null : asset.bytes) : ""}</span></div>
     </section>
   );
 }

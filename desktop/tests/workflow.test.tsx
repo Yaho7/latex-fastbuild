@@ -107,6 +107,18 @@ describe("LaTeX 图片工作流", () => {
     expect(screen.queryByRole("button", { name: "预览 figures/beta.jpg" })).not.toBeInTheDocument();
   });
 
+  it("uses shadcn controls and exposes image references in the inspector tab", async () => {
+    const user = await openProject();
+    const checkbox = screen.getByRole("checkbox", { name: "选择 figures/alpha.png" });
+    expect(checkbox).toHaveAttribute("data-slot", "checkbox");
+    await user.click(checkbox);
+    expect(screen.getByRole("checkbox", { name: "选择当前列表" })).toBePartiallyChecked();
+    await user.click(screen.getByRole("tab", { name: /引用位置/ }));
+    expect(screen.getByRole("region", { name: "图片引用位置" })).toHaveTextContent("第 8 行");
+    await user.click(screen.getByRole("tab", { name: "转换设置" }));
+    expect(screen.getByRole("radio", { name: "原始" })).toHaveAttribute("data-state", "on");
+  });
+
   it("waits for conversion completion even after the final progress event and sends custom settings", async () => {
     const pending = deferred<ConversionResult>();
     handlers.convert_images = () => pending.promise;
@@ -212,7 +224,7 @@ describe("LaTeX 图片工作流", () => {
     await user.click(within(dialog).getByRole("button", { name: "应用替换" }));
     await within(dialog).findByText("文件已被修改，请重新扫描");
     expect(within(dialog).getByRole("button", { name: "应用替换" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "撤销替换" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "撤销替换", hidden: true })).toBeDisabled();
   });
 
   it("rescans the current main file and clears stale selection and conversion state", async () => {
@@ -242,9 +254,9 @@ describe("LaTeX 图片工作流", () => {
 
   it("requests the converted asset only after completion and the converted tab is chosen", async () => {
     const user = await openProject();
-    expect(screen.getByRole("button", { name: "转换后" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "转换后" })).toBeDisabled();
     await convertFirst(user);
-    await user.click(screen.getByRole("button", { name: "转换后" }));
+    await user.click(screen.getByRole("radio", { name: "转换后" }));
     await screen.findByRole("img", { name: "转换后：figures/alpha.png" });
     expect(calls).toContainEqual({ command: "asset_preview", args: { imageId: "a", converted: true } });
   });

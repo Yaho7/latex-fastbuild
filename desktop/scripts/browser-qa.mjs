@@ -69,7 +69,7 @@ try {
   await page.screenshot({ path: "screenshots/fixture-workbench-desktop.png", fullPage: true });
   await page.getByRole("checkbox", { name: "选择 figures/result.png", exact: true }).check();
   await page.getByRole("button", { name: "转换所选图片", exact: true }).click();
-  await page.getByRole("button", { name: "转换后", exact: true }).click();
+  await page.getByRole("radio", { name: "转换后", exact: true }).click();
   await page.locator("canvas").waitFor();
   await page.waitForFunction(() => {
     const canvas = document.querySelector("canvas");

@@ -19,6 +19,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: #15803d;
+  --color-warning: #a16207;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
