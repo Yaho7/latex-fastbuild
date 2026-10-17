@@ -344,5 +344,6 @@ fn replaced_images_remain_linked_to_sources_and_noop_rebuilds_preserve_undo() {
     assert_ne!(first.images[0].pdf_path, updated.images[0].pdf_path);
     assert_eq!(reopened.plan().unwrap().reference_count, 1);
     reopened.apply().unwrap();
-    assert!(fs::read_to_string(main).unwrap().contains(updated.images[0].pdf_path.as_ref().unwrap().split("texgo-pdf/").last().unwrap()));
+    let output_name = Path::new(updated.images[0].pdf_path.as_ref().unwrap()).file_name().unwrap().to_str().unwrap();
+    assert!(fs::read_to_string(main).unwrap().contains(output_name));
 }

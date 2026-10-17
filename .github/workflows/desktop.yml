@@ -544,17 +544,23 @@ jobs:
           PRERELEASE: ${{ needs.frontend.outputs.prerelease }}
         run: |
           cat > release-notes.md <<'NOTES'
-          Desktop installers for Windows x64 (NSIS), Linux x64 (Debian/AppImage),
-          and macOS Apple Silicon/Intel (DMG). Check SHA256SUMS before installing.
+          Texgo Desktop: a local LaTeX image workbench with an Apple-inspired UI,
+          recursive reference scanning, PDF quality presets, image/PDF previews,
+          reversible reference replacement and source-image tracking.
 
-          These builds have no trusted Windows publisher signature and macOS builds
-          are ad-hoc signed, not Developer ID signed or notarized. OS security
-          warnings or installation blocks are expected. Do not disable OS protections.
+          Installers: Windows x64 (NSIS), Linux x64 (Debian/AppImage), and macOS
+          Apple Silicon/Intel (DMG). Standalone texgo-engine archives provide CLI,
+          JSON-RPC 2.0, automatic compilation and ready-to-use VS Code build/watch
+          examples. See api.md and project.schema.json inside the engine archive.
 
-          Browser QA includes explicitly mocked native-bridge fixtures with real
-          browser image/PDF rendering. Linux startup smoke checks liveness only.
-          Neither proves native GUI workflows, installation or TeX compilation.
-          See docs/desktop-release.md in the tagged source.
+          Checks run on GitHub Actions: frontend tests, browser fixture rendering,
+          Rust tests on three operating systems, a real pdfLaTeX automation fixture,
+          standalone API smoke tests on native targets, and Linux startup liveness.
+          Browser fixtures do not establish native GUI installation behavior.
+
+          SHA256SUMS covers every download. Windows builds are unsigned; macOS
+          builds are ad-hoc signed and not notarized. See docs/desktop-release.md
+          in the tagged source for packaging and signing details.
           License: MIT (see LICENSE in the tagged source).
           NOTES
           flags=()
