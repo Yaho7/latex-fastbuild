@@ -66,4 +66,6 @@ GitHub Actions 负责全部测试、编译和打包，本地工作流只修改�
 
 首批目标为 Windows x64、Linux x64、macOS Apple Silicon 和 Intel。未配置开发者证书时，Windows 包未签名，macOS 包只有临时签名，系统可能显示安装警告；当前发布不代表已完成各平台真实安装验证。
 
+macOS 桌面版最低要求为 13.3，以适配新界面依赖的 WebKit 能力。Windows 需要更新的 WebView2，Linux 需要更新的 WebKitGTK 4.1。
+
 详细发布说明见 [desktop-release.md](../docs/desktop-release.md)，CI 说明见 [README.md](README.md)。

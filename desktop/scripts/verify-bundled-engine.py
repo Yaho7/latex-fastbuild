@@ -132,6 +132,7 @@ class Verification:
             with (app / "Contents/Info.plist").open("rb") as source:
                 info = plistlib.load(source)
             require(info["CFBundleShortVersionString"] == self.version, "DMG app version mismatch")
+            require(info.get("LSMinimumSystemVersion") == "13.3", "DMG must require a WebKit-compatible macOS baseline")
             binaries = app / "Contents/MacOS"
             engine = binaries / "texgo-engine"
             self.check(engine, binaries / info["CFBundleExecutable"], record, work)

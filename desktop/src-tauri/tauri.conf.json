@@ -34,7 +34,7 @@
     "longDescription": "Discover referenced LaTeX images, convert them to PDF and apply reversible reference replacements.",
     "license": "MIT",
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
-    "macOS": { "minimumSystemVersion": "10.15" },
+    "macOS": { "minimumSystemVersion": "13.3" },
     "windows": { "nsis": { "installMode": "currentUser", "languages": ["SimpChinese", "English"], "displayLanguageSelector": true } }
   }
 }

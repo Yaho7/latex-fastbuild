@@ -37,6 +37,8 @@ Windows and `.tar.gz` on macOS/Linux. They contain the executable, API guide,
 configuration schema, license and editor examples. These optional archives
 require no WebView; desktop users already have the same engine installed.
 Document compilation additionally requires a locally installed LaTeX toolchain.
+The macOS desktop UI requires macOS 13.3 or newer. Keep Windows WebView2 and
+Linux WebKitGTK 4.1 current for the shadcn/Tailwind interface.
 
 Windows builds are unsigned and can trigger SmartScreen or enterprise-policy
 blocks. macOS builds are ad-hoc signed only, not Developer ID signed or notarized;

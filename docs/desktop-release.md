@@ -236,6 +236,14 @@ and CLI smoke checks are not evidence that the redesigned native UI is accepted.
 
 ## Integrity and Installation
 
+The desktop UI requires modern WebViews. macOS installers require **macOS 13.3
+or newer**, rather than the original 10.15 Tauri minimum, to provide a WebKit
+baseline suitable for [Tailwind CSS v4](https://tailwindcss.com/docs/compatibility)
+(Safari 16.4-era CSS support). Older macOS/WebKit combinations are not supported
+by this desktop release. Windows requires an updated WebView2 runtime; Linux
+requires an up-to-date WebKitGTK 4.1 runtime. The independent engine does not
+render web content.
+
 Download the installer for the correct architecture together with `SHA256SUMS`.
 From a directory containing all release installers, verify with:
 
