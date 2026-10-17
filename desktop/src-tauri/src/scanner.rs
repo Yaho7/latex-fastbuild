@@ -206,6 +206,16 @@ fn commands(text: &str) -> Vec<Command> {
         while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; }
         if start == i { i += 1; continue; }
         let name = &text[start..i];
+        if name == "newif" {
+            i = skip_space(bytes, i);
+            if bytes.get(i) == Some(&b'\\') {
+                i += 1;
+                while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; }
+            }
+            continue;
+        }
+        if matches!(name, "if" | "ifx" | "ifnum" | "ifdim" | "ifodd" | "ifvmode" | "ifhmode" | "ifmmode" | "ifinner" | "ifcat" | "iftrue" | "iffalse" | "ifcase" | "ifdefined" | "ifcsname" | "ifeof" | "ifvoid" | "ifhbox" | "ifvbox" | "ifpdf" | "ifxetex" | "ifluatex" | "ifdraft") { depth += 1; continue; }
+        if name == "fi" { depth = depth.saturating_sub(1); continue; }
         if matches!(name, "begingroup" | "bgroup") { depth += 1; continue; }
         if matches!(name, "endgroup" | "egroup") { depth = depth.saturating_sub(1); continue; }
         if matches!(name, "begin" | "end") {

@@ -242,6 +242,7 @@ fn contextual_graphics_paths_block_automatic_replacement() {
     for source in [
         "\\graphicspath{{base/}}\\input{shared}\\graphicspath{{alternate/}}\\input{shared}",
         "\\graphicspath{{base/}}{\\graphicspath{{alternate/}}\\includegraphics{a.png}}\\includegraphics{a.png}",
+        "\\graphicspath{{base/}}\\iffalse\\graphicspath{{alternate/}}\\fi\\includegraphics{a.png}",
     ] {
         write(dir.path(), "main.tex", source);
         let ws = Workspace::open(&dir.path().join("main.tex")).unwrap();

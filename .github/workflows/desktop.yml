@@ -19,6 +19,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  dependencies:
+    name: Resolve shared Rust dependency lock
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve Rust dependencies on the runner
+        run: |
+          if [ ! -f desktop/src-tauri/Cargo.lock ]; then
+            cargo generate-lockfile --manifest-path desktop/src-tauri/Cargo.toml
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-cargo-lock
+          path: desktop/src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14
+
   frontend:
     name: Versions, frontend and browser preview
     runs-on: ubuntu-22.04
@@ -85,18 +105,6 @@ jobs:
         run: npm test
       - name: Build frontend
         run: npm run build
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Resolve a shared Rust lockfile on the runner
-        run: |
-          if [ ! -f src-tauri/Cargo.lock ]; then
-            cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: desktop-cargo-lock
-          path: desktop/src-tauri/Cargo.lock
-          if-no-files-found: error
-          retention-days: 14
       - name: Install browser QA tooling on the runner
         run: |
           npm install --no-save --package-lock=false @playwright/test@1
@@ -143,7 +151,7 @@ jobs:
 
   core:
     name: Rust core tests (${{ matrix.os }})
-    needs: frontend
+    needs: dependencies
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -162,6 +170,11 @@ jobs:
         with:
           name: desktop-cargo-lock
           path: desktop/src-tauri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: core-${{ matrix.os }}
+          cache-on-failure: true
       - name: Test pure Rust core, including integration tests
         run: cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --locked
 
@@ -218,6 +231,11 @@ jobs:
         with:
           name: desktop-cargo-lock
           path: desktop/src-tauri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: package-${{ matrix.target }}
+          cache-on-failure: true
       - name: Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |

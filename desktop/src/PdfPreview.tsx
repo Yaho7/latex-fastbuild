@@ -47,7 +47,7 @@ export default function PdfPreview({ data, label }: { data: string; label: strin
       try {
         const binary = atob(data);
         const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-        loadingTask = getDocument({ data: bytes, isEvalSupported: false });
+        loadingTask = getDocument({ data: bytes });
         const pdf = await loadingTask.promise;
         if (disposed) return;
         setPages(pdf.numPages);
