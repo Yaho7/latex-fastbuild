@@ -2,6 +2,14 @@
 
 [English](./README.md)
 
+## 桌面应用
+
+Texgo 桌面版使用 Tauri 2，面向 Windows、macOS 和 Linux。选择 TeX 主文件后，可扫描图片引用、选择质量转换 PDF，并预览、应用和撤销引用替换。
+
+参见[桌面版使用说明](desktop/README.zh.md)、[发布说明](docs/desktop-release.md)和[桌面版下载](https://github.com/yaho7/texgo/releases?q=desktop-v)。测试、编译和安装包生成均在 GitHub Actions 执行，桌面版使用 `desktop-v*` 标签发布。
+
+## 原有命令行工具
+
 `texgo` 是一个用于 LaTeX 项目的 Go 命令行工具。它通过缓存已转换的图片 PDF，减少 LaTeX 在重复编译中的图片处理开销，同时自动识别主 `.tex` 文件并调用 `latexmk` 完成编译。
 
 ## 功能

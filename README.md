@@ -2,6 +2,14 @@
 
 [简体中文](./README.zh.md)
 
+## Desktop App
+
+Texgo Desktop is a Tauri 2 application for Windows, macOS and Linux. Select a main TeX file, inspect referenced images, convert them to PDF with quality presets, and review reversible reference replacements.
+
+See the [desktop guide](desktop/README.md), [Chinese user guide](desktop/README.zh.md), and [desktop releases](https://github.com/yaho7/texgo/releases?q=desktop-v). Tests, builds and installers run in GitHub Actions. Desktop tags use `desktop-v*`.
+
+## Legacy CLI
+
 `texgo` is a small Go CLI for building LaTeX projects from the terminal. It reduces repeated LaTeX compilation overhead by caching converted figure PDFs, detects the main `.tex` file, and delegates compilation to `latexmk`.
 
 ## Features
