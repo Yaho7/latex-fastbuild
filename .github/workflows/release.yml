@@ -2,39 +2,16 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Run tests
-        run: go test ./...
-
-      - name: Test installer release path
-        run: bash tests/install_release_test.sh
-
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
-    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -6,7 +6,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build",
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "tauri": "tauri"
   },

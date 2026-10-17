@@ -7,8 +7,8 @@ No listener, account, token, or cloud service is involved.
 
 Installing Texgo Desktop also installs this engine. See the
 [bundled executable paths](desktop-release.md#one-install-gui-and-cli) and use
-that absolute path as the editor's process command. A separate engine archive
-is optional for CLI-only deployments; put that binary on `PATH` if preferred.
+that absolute path as the editor's process command. No second engine archive
+or installation is required.
 Compilation requires an existing TeX distribution providing `latexmk` and the
 chosen engine. Texgo never downloads or installs TeX. Run only trusted TeX
 projects: latexmk, TeX, project latexmkrc files, packages, and external tools
@@ -84,8 +84,8 @@ For `/project/.texgo/project.json`:
 `version` and `mainFile` are required. Unknown properties, wrong JSON types,
 unsupported versions, and invalid option ranges are rejected, including in
 nested objects. Optional `$schema` is an editor hint, not a schema URL fetched
-by the engine. The schema is distributed as `project.schema.json` in release
-archives and maintained in `docs/project.schema.json` in the repository.
+by the engine. The schema is maintained at `docs/project.schema.json` in the
+repository and tagged release source.
 
 | Property | Default | Contract |
 | --- | --- | --- |

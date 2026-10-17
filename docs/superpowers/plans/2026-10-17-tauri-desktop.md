@@ -1,6 +1,6 @@
 # Texgo Desktop Implementation Plan
 
-> Execution: parallel agents own the frontend and release workflow; the parent owns the Rust core and integration. All builds, tests and packaging run in GitHub Actions, as requested by the user.
+> Current policy: local static checks; GitHub Actions packages directly on every push. The earlier cloud test/QA pipeline described below is historical and has been removed from the automatic workflow.
 
 **Goal:** Ship a Windows, macOS and Linux Tauri application that discovers images referenced by a LaTeX project, converts selected images to PDF and applies reversible reference replacements.
 
@@ -37,18 +37,26 @@
 - [x] Add versioned project JSON configuration, structured build results, concise diagnostics and complete captured logs.
 - [x] Supply VS Code build/watch tasks and documentation; source replacement requires an explicit flag or confirmation field.
 - [x] Persist generated-PDF-to-source mappings so background runs update edited original images after reference replacement.
-- [ ] Test headless operations on Actions and publish engine archives alongside desktop installers.
+- [x] Test headless operations on Actions; subsequently bundle the engine in every desktop installer instead of publishing separate engine archives.
 
 ## 5. User-Requested UI and Installer Revision
 
 - [x] Replace bespoke controls with official shadcn/ui components, generated through the CLI on GitHub Actions.
 - [x] Reorganize the workbench into a file table and a combined preview/settings inspector.
 - [x] Bundle the independent engine as a Tauri external binary in the same desktop installer.
-- [ ] Verify new UI screenshots and all packaged CLI payloads on Actions before tagging a release.
+- [x] Verify new UI screenshots and all packaged CLI payloads on Actions; user accepted the shadcn workbench.
+
+## 6. Simplified Packaging (Latest User Request)
+
+- [x] Trigger direct four-platform packaging on every push, without a duplicate PR trigger.
+- [x] Remove automatic frontend/Rust tests, browser QA, TeX fixtures, installer checks and dependency-lock transfer jobs.
+- [x] Keep the bundled engine and publish only from desktop version tags.
+- [x] Move static checks to local development; keep compilation and packaging on Actions.
+- [ ] Publish with the simplified workflow. The old `desktop-v0.2.0` run was cancelled before publication; do not rewrite its tag.
 
 ## Acceptance
 
 - Opening a real multi-file LaTeX fixture discovers only referenced images and reports unresolved paths.
 - Raster PDF output retains alpha; SVG output retains vectors; quality settings affect cache identity.
 - Applying replacements changes only path spans. Edited files cannot be overwritten by stale plans or undo.
-- All installer jobs succeed before publication. No local compile, package, test or dev-server commands are run.
+- All installer jobs succeed before publication. Local static checks are allowed; compilation and packaging remain on Actions.

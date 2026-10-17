@@ -2,287 +2,20 @@ name: Desktop
 
 on:
   push:
-    branches: [main, 'codex/**']
-    tags: ['desktop-v*']
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: desktop-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
-env:
-  CI: 'true'
-  CARGO_TERM_COLOR: always
-
 jobs:
-  dependencies:
-    name: Resolve shared Rust dependency lock
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Resolve Rust dependencies on the runner
-        run: |
-          if [ ! -f desktop/src-tauri/Cargo.lock ]; then
-            cargo generate-lockfile --manifest-path desktop/src-tauri/Cargo.toml
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: desktop-cargo-lock
-          path: desktop/src-tauri/Cargo.lock
-          if-no-files-found: error
-          retention-days: 14
-
-  frontend:
-    name: Versions, frontend and browser preview
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
-    defaults:
-      run:
-        working-directory: desktop
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Check package, Cargo, Tauri and tag versions
-        id: version
-        run: |
-          python - <<'PY'
-          import json, os, re, tomllib
-          from pathlib import Path
-
-          package = json.loads(Path('package.json').read_text())
-          cargo = tomllib.loads(Path('src-tauri/Cargo.toml').read_text())
-          tauri = json.loads(Path('src-tauri/tauri.conf.json').read_text())
-          versions = [package['version'], cargo['package']['version'], tauri['version']]
-          version = versions[0]
-          number = r'(?:0|[1-9][0-9]*)'
-          identifier = rf'(?:{number}|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
-          semver = rf'{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?'
-          if not isinstance(version, str) or not re.fullmatch(semver, version):
-              raise SystemExit('Use a SemVer version without build metadata')
-          if any(item != version for item in versions):
-              raise SystemExit(f'Version mismatch (package, Cargo, Tauri): {versions}')
-          ref = os.environ['GITHUB_REF']
-          if ref.startswith('refs/tags/') and ref != f'refs/tags/desktop-v{version}':
-              raise SystemExit(f'Tag must be desktop-v{version}, got {ref}')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'version={version}\nprerelease={str("-" in version).lower()}\n')
-          PY
-      - name: Install frontend dependencies (lockfile not required initially)
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-      - name: Preserve the shared npm lockfile before browser-tool installation
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-npm-lock
-          path: desktop/package-lock.json
-          if-no-files-found: error
-          retention-days: 14
-      - name: Typecheck
-        run: npm run check
-      - name: Validate editor project schema and examples
-        run: |
-          python -m pip install --disable-pip-version-check jsonschema==4.23.0
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from jsonschema import Draft202012Validator
-          schema = json.loads(Path('../docs/project.schema.json').read_text())
-          Draft202012Validator.check_schema(schema)
-          validator = Draft202012Validator(schema)
-          for root in [Path('../examples/vscode'), Path('../tests/fixtures/editor-project')]:
-              for path in root.rglob('project.json'):
-                  validator.validate(json.loads(path.read_text()))
-          for path in Path('../examples/vscode/.vscode').glob('*.json'):
-              json.loads(path.read_text())
-          PY
-      - name: Frontend unit tests
-        run: npm test
-      - name: Build frontend
-        run: npm run build
-      - name: Install browser QA tooling on the runner
-        run: |
-          npm install --no-save --package-lock=false @playwright/test@1
-          npx playwright install --with-deps chromium
-      - name: Browser-only preview screenshots, fixture QA and optional E2E tests
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
-        run: |
-          mkdir -p screenshots
-          npm exec -- vite preview --host 127.0.0.1 --port 4173 --strictPort > screenshots/preview.log 2>&1 &
-          preview_pid=$!
-          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
-          ready=false
-          for attempt in {1..60}; do
-            if curl --fail --silent "$PLAYWRIGHT_BASE_URL" > /dev/null; then
-              ready=true
-              break
-            fi
-            sleep 1
-          done
-          if [ "$ready" != true ]; then
-            cat screenshots/preview.log
-            exit 1
-          fi
-          npx playwright screenshot --browser chromium --viewport-size '1440,1000' \
-            --wait-for-selector '#root > *' --wait-for-timeout 1500 --full-page \
-            "$PLAYWRIGHT_BASE_URL" screenshots/browser-desktop.png
-          npx playwright screenshot --browser chromium --viewport-size '390,844' \
-            --wait-for-selector '#root > *' --wait-for-timeout 1500 --full-page \
-            "$PLAYWRIGHT_BASE_URL" screenshots/browser-narrow.png
-          node scripts/browser-qa.mjs
-          npm run test:e2e --if-present
-      - name: Upload browser QA evidence (not native-app evidence)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-browser-qa
-          path: |
-            desktop/screenshots/
-            desktop/playwright-report/
-            desktop/test-results/
-          if-no-files-found: warn
-          retention-days: 14
-
-  core:
-    name: Rust core tests (${{ matrix.os }})
-    needs: dependencies
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-cargo-lock
-          path: desktop/src-tauri
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: desktop/src-tauri
-          key: core-${{ matrix.os }}
-          cache-on-failure: true
-      - name: Test pure Rust core, including integration tests
-        run: cargo test --manifest-path desktop/src-tauri/Cargo.toml --package texgo-desktop --no-default-features --features automation --locked
-
-  integration:
-    name: Real LaTeX automation integration
-    needs: core
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-cargo-lock
-          path: desktop/src-tauri
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: desktop/src-tauri
-          key: core-ubuntu-22.04
-          cache-on-failure: true
-      - name: Install test-only LaTeX on the runner
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y latexmk texlive-latex-base poppler-utils python3-pil
-      - name: Convert, replace, compile and repeat without rewriting references
-        run: |
-          project=tests/fixtures/editor-project
-          mkdir -p automation-proof
-          cp cmd/texgo/template-assets/logo.png "$project/figures/logo.png"
-          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/first.json
-          cp "$project/main.tex" automation-proof/after-first.tex
-          pdftoppm -png -scale-to 1400 -singlefile "$project/build/main.pdf" automation-proof/first-document
-          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/repeated.json
-          cmp "$project/main.tex" automation-proof/after-first.tex
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          for path in Path('automation-proof').glob('*.json'):
-              json.loads(path.read_text())
-          source = Path('tests/fixtures/editor-project/main.tex').read_text()
-          assert 'texgo-pdf/' in source
-          assert '{figures/logo.png}' not in source
-          assert '{figures/plot.svg}' not in source
-          path = Path('tests/fixtures/editor-project/figures/plot.svg')
-          path.write_text(path.read_text().replace('#007aff', '#28a745'))
-          PY
-          cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/image-updated.json
-          if cmp -s "$project/main.tex" automation-proof/after-first.tex; then
-            echo 'Edited SVG did not update its generated PDF reference' >&2
-            exit 1
-          fi
-          test -s "$project/build/main.pdf"
-          test -s "$project/build/main.synctex.gz"
-          pdfinfo "$project/build/main.pdf"
-          pdftoppm -png -scale-to 1400 -singlefile "$project/build/main.pdf" automation-proof/compiled-document
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          from PIL import Image
-          def colors(path):
-              pixels = list(Image.open(path).convert('RGB').getdata())
-              return {
-                  'blue': sum(b > r + 60 and b > g + 60 for r, g, b in pixels),
-                  'green': sum(g > r + 50 and g > b + 50 for r, g, b in pixels),
-              }
-          first = colors('automation-proof/first-document.png')
-          updated = colors('automation-proof/compiled-document.png')
-          proof = {'first': first, 'updated': updated}
-          Path('automation-proof/render-proof.json').write_text(json.dumps(proof, indent=2))
-          print(proof)
-          assert first['blue'] > 100, 'Original PDF did not render the blue fixture'
-          assert updated['green'] > 100, 'Final PDF still contains the old image'
-          assert updated['blue'] < first['blue'] // 10, 'Old blue plot remains in final PDF'
-          PY
-          cp "$project/build/main.pdf" automation-proof/
-          cp "$project/main.tex" automation-proof/after-image-update.tex
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: desktop-automation-integration
-          path: |
-            automation-proof/
-            tests/fixtures/editor-project/build/*.log
-          if-no-files-found: warn
-
   package:
     name: Package ${{ matrix.platform }}-${{ matrix.arch }}
-    needs: [frontend, core, integration]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -310,6 +43,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: desktop
     steps:
       - uses: actions/checkout@v4
         with:
@@ -317,59 +51,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-npm-lock
-          path: desktop
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-cargo-lock
-          path: desktop/src-tauri
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
           key: package-${{ matrix.target }}
-          cache-on-failure: true
-      - name: Linux packaging dependencies
+      - name: Install Linux bundle dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2 xvfb xauth
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2
       - name: Install frontend dependencies
-        working-directory: desktop
         run: npm ci
-      - name: Build headless engine before the Tauri build
-        run: cargo build --manifest-path desktop/src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target ${{ matrix.target }}
-      - name: Stage the target-specific Tauri sidecar
+      - name: Build bundled engine and prepare icons
         env:
           TARGET: ${{ matrix.target }}
         run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --release --locked --no-default-features --features automation --bin texgo-engine --target "$TARGET"
           extension=''
           if [ "$RUNNER_OS" = Windows ]; then extension='.exe'; fi
-          source="desktop/src-tauri/target/$TARGET/release/texgo-engine$extension"
-          sidecar="desktop/src-tauri/binaries/texgo-engine-$TARGET$extension"
-          test -s "$source"
-          mkdir -p desktop/src-tauri/binaries
-          cp "$source" "$sidecar"
-          if [ "$RUNNER_OS" != Windows ]; then chmod +x "$sidecar"; fi
-      - name: Generate platform icons before the default-feature Tauri build
-        working-directory: desktop
-        run: |
+          mkdir -p src-tauri/binaries
+          cp "src-tauri/target/$TARGET/release/texgo-engine$extension" "src-tauri/binaries/texgo-engine-$TARGET$extension"
           npx tauri icon app-icon.svg
-          for icon in src-tauri/icons/icon.png src-tauri/icons/icon.ico src-tauri/icons/icon.icns; do
-            if [ ! -s "$icon" ]; then
-              echo "Missing or empty generated icon: $icon" >&2
-              exit 1
-            fi
-          done
-      # Build only: never pass tagName, releaseName or releaseId here.
-      - name: Build and bundle with the official Tauri action
+      - name: Build desktop installer with bundled engine
         uses: tauri-apps/tauri-action@v1
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1'
@@ -380,227 +88,37 @@ jobs:
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked --bin texgo-desktop
           uploadWorkflowArtifacts: false
           uploadUpdaterJson: false
-      - name: Verify the engine inside every actual desktop package
-        timeout-minutes: 15
-        run: |
-          python desktop/scripts/verify-bundled-engine.py \
-            --target '${{ matrix.target }}' \
-            --version '${{ needs.frontend.outputs.version }}' \
-            --report bundled-engine-proof/report.json
-      - name: Upload packaged-engine evidence
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Collect installers
+        run: node scripts/collect-installers.mjs '${{ matrix.target }}' '${{ matrix.platform }}' '${{ matrix.arch }}'
+      - uses: actions/upload-artifact@v4
         with:
-          name: desktop-bundled-engine-${{ matrix.platform }}-${{ matrix.arch }}
-          path: bundled-engine-proof/
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Linux native startup liveness only (not GUI functionality)
-        if: runner.os == 'Linux'
-        timeout-minutes: 2
-        env:
-          TARGET: ${{ matrix.target }}
-          GDK_BACKEND: x11
-          LIBGL_ALWAYS_SOFTWARE: '1'
-          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-        run: |
-          binary="$GITHUB_WORKSPACE/desktop/src-tauri/target/$TARGET/release/texgo-desktop"
-          log="$GITHUB_WORKSPACE/desktop-native-smoke/startup.log"
-          mkdir -p "$(dirname "$log")"
-          if [ ! -x "$binary" ]; then
-            echo "Missing executable: $binary" | tee "$log"
-            exit 1
-          fi
-          smoke_dir=$(mktemp -d)
-          trap 'rm -rf "$smoke_dir"' EXIT
-          status=0
-          (
-            cd "$smoke_dir"
-            xvfb-run -a timeout --signal=TERM --kill-after=5s 10s "$binary"
-          ) > "$log" 2>&1 || status=$?
-          cat "$log"
-          echo "Startup smoke exit status: $status (expected timeout: 124)" | tee -a "$log"
-          if [ "$status" -ne 124 ]; then
-            echo 'Native startup exited early or failed; this check requires timeout status 124.' >&2
-            exit 1
-          fi
-      - name: Upload Linux native startup diagnostics
-        if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-native-startup-linux-x64
-          path: desktop-native-smoke/
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Collect every requested installer with a unique platform name
-        env:
-          VERSION: ${{ needs.frontend.outputs.version }}
-          PLATFORM: ${{ matrix.platform }}
-          ARCH: ${{ matrix.arch }}
-          TARGET: ${{ matrix.target }}
-        run: |
-          python - <<'PY'
-          import json, os, shutil, tarfile, zipfile
-          from pathlib import Path
-
-          platform = os.environ['PLATFORM']
-          root = Path('desktop/src-tauri/target') / os.environ['TARGET'] / 'release/bundle'
-          formats = {
-              'windows': [('nsis', '.exe')],
-              'linux': [('deb', '.deb'), ('appimage', '.AppImage')],
-              'macos': [('dmg', '.dmg')],
-          }[platform]
-          destination = Path('desktop-installers')
-          destination.mkdir()
-          prefix = f'texgo-desktop_{os.environ["VERSION"]}_{platform}_{os.environ["ARCH"]}__'
-          for directory, suffix in formats:
-              files = sorted((root / directory).glob(f'*{suffix}'))
-              if not files:
-                  raise SystemExit(f'Missing {platform} installer: {root / directory}/*{suffix}')
-              for source in files:
-                  if not source.is_file() or source.stat().st_size == 0:
-                      raise SystemExit(f'Invalid installer: {source}')
-                  target = destination / (prefix + source.name)
-                  if target.exists():
-                      raise SystemExit(f'Duplicate installer: {target}')
-                  shutil.copy2(source, target)
-                  print(target)
-          executable = 'texgo-engine.exe' if platform == 'windows' else 'texgo-engine'
-          binary = root.parent / executable
-          if not binary.is_file() or binary.stat().st_size == 0:
-              raise SystemExit(f'Missing standalone automation engine: {binary}')
-          base = f'texgo-engine_{os.environ["VERSION"]}_{platform}_{os.environ["ARCH"]}'
-          files = [(binary, executable), (Path('LICENSE'), 'LICENSE'), (Path('docs/api.md'), 'api.md'), (Path('docs/project.schema.json'), 'project.schema.json')]
-          editor = Path('engine-editor-template')
-          shutil.copytree('examples/vscode', editor)
-          config_path = editor / '.texgo/project.json'
-          config = json.loads(config_path.read_text())
-          config['$schema'] = '../project.schema.json'
-          config_path.write_text(json.dumps(config, indent=2) + '\n')
-          files += [(source, str(source.relative_to(editor))) for source in editor.rglob('*') if source.is_file()]
-          if platform == 'windows':
-              with zipfile.ZipFile(destination / (base + '.zip'), 'w', zipfile.ZIP_DEFLATED) as archive:
-                  for source, name in files:
-                      archive.write(source, name)
-          else:
-              with tarfile.open(destination / (base + '.tar.gz'), 'w:gz') as archive:
-                  for source, name in files:
-                      archive.add(source, arcname=name)
-          PY
-      - name: Upload installers (no GitHub Release yet)
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-bundles-${{ matrix.platform }}-${{ matrix.arch }}
+          name: desktop-installers-${{ matrix.platform }}-${{ matrix.arch }}
           path: desktop-installers/*
           if-no-files-found: error
-          retention-days: 14
 
   release:
-    name: Verify all installers and publish desktop release
-    needs: [frontend, core, package]
+    name: Publish Release
+    needs: package
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/desktop-v')
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: desktop-bundles-*
-          path: downloaded
-          merge-multiple: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Verify matrix completeness, platform filenames and checksums
-        env:
-          VERSION: ${{ needs.frontend.outputs.version }}
-        run: |
-          python - <<'PY'
-          import hashlib, os, shutil
-          from pathlib import Path
-
-          expected = {
-              'windows-x64': {'.exe'},
-              'linux-x64': {'.deb', '.AppImage'},
-              'macos-arm64': {'.dmg'},
-              'macos-x64': {'.dmg'},
-          }
-          root, release = Path('downloaded'), Path('release')
-          if {p.name for p in root.iterdir()} != {f'desktop-bundles-{key}' for key in expected}:
-              raise SystemExit('Missing or unexpected matrix artifact directories')
-          release.mkdir()
-          for key, suffixes in expected.items():
-              platform, arch = key.split('-')
-              prefix = f'texgo-desktop_{os.environ["VERSION"]}_{platform}_{arch}__'
-              found = set()
-              engine = f'texgo-engine_{os.environ["VERSION"]}_{platform}_{arch}' + ('.zip' if platform == 'windows' else '.tar.gz')
-              engine_found = False
-              for source in sorted((root / f'desktop-bundles-{key}').iterdir()):
-                  if (not source.is_file() or source.is_symlink() or source.stat().st_size == 0
-                      or not ((source.name.startswith(prefix) and source.suffix in suffixes) or source.name == engine)
-                      or any(c in source.name for c in '\r\n\\')):
-                      raise SystemExit(f'Unexpected installer: {source}')
-                  target = release / source.name
-                  if target.exists():
-                      raise SystemExit(f'Duplicate release filename: {source.name}')
-                  shutil.copy2(source, target)
-                  if source.name == engine:
-                      engine_found = True
-                  else:
-                      found.add(source.suffix)
-              if found != suffixes:
-                  raise SystemExit(f'Missing installer formats for {key}: {suffixes - found}')
-              if not engine_found:
-                  raise SystemExit(f'Missing standalone engine for {key}')
-          with (release / 'SHA256SUMS').open('w', encoding='ascii') as sums:
-              for path in sorted(release.iterdir()):
-                  if path.name != 'SHA256SUMS':
-                      with path.open('rb') as binary:
-                          digest = hashlib.file_digest(binary, 'sha256').hexdigest()
-                      sums.write(f'{digest}  {path.name}\n')
-          PY
-          (cd release && sha256sum --check SHA256SUMS)
-      - name: Archive the complete verified release set
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-release-${{ needs.frontend.outputs.version }}
-          path: release/*
-          if-no-files-found: error
-          retention-days: 30
-      - name: Create draft with all files, then publish (never replace assets)
+          pattern: desktop-installers-*
+          path: release
+          merge-multiple: true
+      - name: Generate checksums and publish
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          PRERELEASE: ${{ needs.frontend.outputs.prerelease }}
         run: |
-          cat > release-notes.md <<'NOTES'
-          Texgo Desktop: a local LaTeX image workbench,
-          recursive reference scanning, PDF quality presets, image/PDF previews,
-          reversible reference replacement and source-image tracking.
-
-          Installers: Windows x64 (NSIS), Linux x64 (Debian/AppImage), and macOS
-          Apple Silicon/Intel (DMG). Every desktop package includes the headless
-          texgo-engine CLI and JSON-RPC API: one install provides both GUI and CLI.
-          No separate engine download is needed. Compatibility engine archives
-          include API documentation, the project schema and VS Code examples.
-          See docs/desktop-release.md for installed CLI paths and editor setup.
-
-          Checks run on GitHub Actions: frontend tests, browser fixture rendering,
-          Rust tests on three operating systems, a real pdfLaTeX automation fixture,
-          package-content/CPU checks, packaged CLI/API smoke tests on native
-          targets, Windows silent install/uninstall, and Linux startup liveness.
-          Intel macOS cross-builds are inspected but not executed on ARM runners.
-          Browser fixtures do not establish native GUI installation behavior.
-
-          SHA256SUMS covers every download. Windows builds are unsigned; macOS
-          builds are ad-hoc signed and not notarized. See docs/desktop-release.md
-          in the tagged source for packaging and signing details.
-          License: MIT (see LICENSE in the tagged source).
-          NOTES
+          (cd release && sha256sum * > SHA256SUMS)
           flags=()
-          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          if [[ "${TAG#desktop-v}" == *-* ]]; then flags+=(--prerelease); fi
           gh release create "$TAG" release/* --verify-tag --draft --latest=false \
-            --title "texgo Desktop ${TAG#desktop-v}" --notes-file release-notes.md "${flags[@]}"
+            --title "Texgo Desktop ${TAG#desktop-v}" \
+            --notes 'Desktop installers include both the shadcn/ui workbench and the independent texgo-engine CLI/JSON-RPC API. No separate engine installation is needed. macOS requires 13.3+. Windows is unsigned; macOS is ad-hoc signed and not notarized. SHA256SUMS covers every installer.' "${flags[@]}"
           gh release edit "$TAG" --draft=false --latest=false
