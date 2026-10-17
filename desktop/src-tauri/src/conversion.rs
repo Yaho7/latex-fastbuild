@@ -30,10 +30,17 @@ pub(crate) fn convert(source: &Path, root: &Path, options: &ConversionOptions) -
     let dependency_keys: Vec<_> = dependencies.iter().map(|(path, hash)| {
         (path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"), hash)
     }).collect();
+    let effective = if is_svg { ("vector", 0, 0.0, 0) } else {
+        match options.quality.as_str() {
+            "original" => ("original", 0, 0.0, 0),
+            "high" => ("high", 300, options.max_width_mm, 92),
+            "compact" => ("compact", 150, options.max_width_mm, 75),
+            _ => ("custom", options.dpi, options.max_width_mm, options.jpeg_quality),
+        }
+    };
     // Ordered fields make GUI and headless cache identities independent of JSON map features.
     let identity = ("texgo-pdf-v3", env!("CARGO_PKG_VERSION"), source_identity, digest(&bytes),
-        &options.quality, options.dpi, options.max_width_mm, options.jpeg_quality,
-        dependency_keys, vector_pdf.as_ref().map(|pdf| digest(pdf)));
+        effective, dependency_keys, vector_pdf.as_ref().map(|pdf| digest(pdf)));
     let hash = digest(&serde_json::to_vec(&identity).map_err(|e| e.to_string())?);
     let stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
     let stem: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).take(60).collect();

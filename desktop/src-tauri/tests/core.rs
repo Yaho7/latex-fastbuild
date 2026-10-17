@@ -91,6 +91,13 @@ fn creates_readable_pdf_and_content_cache_with_transparency() {
     assert!(doc.objects.values().any(|obj| obj.as_stream().is_ok_and(|s| s.dict.has(b"SMask"))));
     let second = ws.convert(&opts, &cancelled, |_| {}).unwrap();
     assert!(second.images[0].cached);
+    let mut irrelevant = opts.clone();
+    irrelevant.jpeg_quality = 1;
+    irrelevant.dpi = 72;
+    irrelevant.max_width_mm = 10.0;
+    let shared_cache = ws.convert(&irrelevant, &cancelled, |_| {}).unwrap();
+    assert!(shared_cache.images[0].cached);
+    assert_eq!(shared_cache.images[0].pdf_path.as_ref().unwrap(), pdf);
     let mut changed = opts;
     changed.quality = "compact".into();
     let third = ws.convert(&changed, &cancelled, |_| {}).unwrap();
