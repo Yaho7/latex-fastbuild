@@ -164,7 +164,7 @@ export default function App() {
   return <TooltipProvider delayDuration={350}><div className="app-shell">
     <div className="workbench" inert={review !== null}>
       <header className="app-toolbar">
-        <div className="brand"><span className="brand-mark"><FileCode2 aria-hidden="true" /></span><span>Texgo</span><Badge variant="secondary">0.2.0</Badge></div>
+        <div className="brand"><span className="brand-mark"><FileCode2 aria-hidden="true" /></span><span>Texgo</span><Badge variant="secondary">0.2.1</Badge></div>
         <ChevronRight className="project-chevron" aria-hidden="true" />
         <div className="project-title"><strong title={project?.mainFile}>{project ? fileName(project.mainFile) : "工作台"}</strong></div>
         <div className="toolbar-actions"><IconButton label="重新扫描" disabled={busy || !project} onClick={() => { if (project) void execute("opening", () => loadProject(project.mainFile)); }}><RefreshCw aria-hidden="true" /></IconButton><Separator orientation="vertical" className="h-5" /><Button variant="outline" size="sm" disabled={busy} onClick={openProject}><FolderOpen data-icon="inline-start" aria-hidden="true" />打开文件</Button></div>
