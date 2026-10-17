@@ -347,3 +347,23 @@ fn replaced_images_remain_linked_to_sources_and_noop_rebuilds_preserve_undo() {
     let output_name = Path::new(updated.images[0].pdf_path.as_ref().unwrap()).file_name().unwrap().to_str().unwrap();
     assert!(fs::read_to_string(main).unwrap().contains(output_name));
 }
+
+#[test]
+fn identical_images_with_colliding_sanitized_names_keep_independent_sources() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "main.tex", "\\includegraphics{a+b.png}\n\\includegraphics{a_b.png}");
+    png(dir.path(), "a+b.png");
+    fs::copy(dir.path().join("a+b.png"), dir.path().join("a_b.png")).unwrap();
+    let main = dir.path().join("main.tex");
+    let mut ws = Workspace::open(&main).unwrap();
+    let first = ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    assert_ne!(first.images[0].pdf_path, first.images[1].pdf_path);
+    ws.apply().unwrap();
+    let mut reopened = Workspace::open(&main).unwrap();
+    assert_eq!(reopened.project().images.len(), 2);
+    image::RgbaImage::from_pixel(32, 16, image::Rgba([5, 200, 5, 255])).save(dir.path().join("a+b.png")).unwrap();
+    let updated = reopened.convert(&options(&reopened), &AtomicBool::new(false), |_| {}).unwrap();
+    assert_ne!(first.images[0].pdf_path, updated.images[0].pdf_path);
+    assert_eq!(first.images[1].pdf_path, updated.images[1].pdf_path);
+    assert_eq!(reopened.plan().unwrap().reference_count, 1);
+}

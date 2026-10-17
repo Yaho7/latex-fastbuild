@@ -26,12 +26,15 @@ pub(crate) fn convert(source: &Path, root: &Path, options: &ConversionOptions) -
         let (pdf, dependencies) = svg_pdf(&bytes, source, root)?;
         (Some(pdf), dependencies)
     } else { (None, Vec::new()) };
-    let settings = format!("texgo-pdf-v2:{}:{}:{}:{}:{}", env!("CARGO_PKG_VERSION"), options.quality, options.dpi, options.max_width_mm, options.jpeg_quality);
-    let mut content = bytes.clone();
-    content.extend_from_slice(settings.as_bytes());
-    if let Some(pdf) = &vector_pdf { content.extend_from_slice(digest(pdf).as_bytes()); }
-    for (path, hash) in &dependencies { content.extend_from_slice(path.to_string_lossy().as_bytes()); content.extend_from_slice(hash.as_bytes()); }
-    let hash = digest(&content);
+    let source_identity = source.strip_prefix(root).map_err(|_| "原图片位于项目之外")?.to_string_lossy().replace('\\', "/");
+    let dependency_keys: Vec<_> = dependencies.iter().map(|(path, hash)| {
+        (path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"), hash)
+    }).collect();
+    // Ordered fields make GUI and headless cache identities independent of JSON map features.
+    let identity = ("texgo-pdf-v3", env!("CARGO_PKG_VERSION"), source_identity, digest(&bytes),
+        &options.quality, options.dpi, options.max_width_mm, options.jpeg_quality,
+        dependency_keys, vector_pdf.as_ref().map(|pdf| digest(pdf)));
+    let hash = digest(&serde_json::to_vec(&identity).map_err(|e| e.to_string())?);
     let stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
     let stem: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).take(60).collect();
     let output_dir = source.parent().ok_or("图片目录不存在")?.join("texgo-pdf");
