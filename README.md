@@ -6,7 +6,7 @@
 
 Texgo Desktop is a Tauri 2 application for Windows, macOS and Linux. Select a main TeX file, inspect referenced images, convert them to PDF with quality presets, and review reversible reference replacements.
 
-See the [desktop guide](desktop/README.md), [Chinese user guide](desktop/README.zh.md), and [desktop releases](https://github.com/yaho7/texgo/releases?q=desktop-v). Tests, builds and installers run in GitHub Actions. Desktop tags use `desktop-v*`.
+See the [desktop guide](desktop/README.md), [Chinese user guide](desktop/README.zh.md), and [desktop releases](https://github.com/yaho7/texgo/releases?q=desktop-v). Static checks run locally. Every push directly builds installers on GitHub Actions; `desktop-v*` tags also publish a Release.
 
 ## Legacy CLI
 

@@ -6,7 +6,7 @@
 
 Texgo 桌面版使用 Tauri 2，面向 Windows、macOS 和 Linux。选择 TeX 主文件后，可扫描图片引用、选择质量转换 PDF，并预览、应用和撤销引用替换。
 
-参见[桌面版使用说明](desktop/README.zh.md)、[发布说明](docs/desktop-release.md)和[桌面版下载](https://github.com/yaho7/texgo/releases?q=desktop-v)。测试、编译和安装包生成均在 GitHub Actions 执行，桌面版使用 `desktop-v*` 标签发布。
+参见[桌面版使用说明](desktop/README.zh.md)、[发布说明](docs/desktop-release.md)和[桌面版下载](https://github.com/yaho7/texgo/releases?q=desktop-v)。本地执行静态检查；每次 push 都在 GitHub Actions 直接打包，`desktop-v*` 标签额外发布到 Release。
 
 ## 原有命令行工具
 
