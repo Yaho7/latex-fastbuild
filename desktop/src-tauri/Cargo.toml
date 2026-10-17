@@ -1,0 +1,36 @@
+[package]
+name = "texgo-desktop"
+version = "0.2.0"
+description = "A local LaTeX image workbench"
+authors = ["yaho"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "texgo_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "texgo-desktop"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[features]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-dialog"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "tiff", "bmp", "webp"] }
+lopdf = "0.38"
+pathdiff = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+svg2pdf = "0.13"
+tempfile = "3"
+tauri = { version = "2", features = [], optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
