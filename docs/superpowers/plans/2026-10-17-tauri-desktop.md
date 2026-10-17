@@ -22,7 +22,7 @@
 - [x] Add focused frontend tests; cloud typecheck, tests and browser fixture QA passed.
 - [x] Review the scoped diff and commit the workbench.
 - [x] Apply the requested Apple-inspired visual redesign.
-- [ ] Verify redesigned workbench screenshots on GitHub Actions.
+- [x] Verify redesigned workbench screenshots on GitHub Actions at 1440, 1024 and 390 widths.
 
 ## 3. Cloud Verification and Release
 
@@ -33,10 +33,10 @@
 
 ## 4. Headless Developer Integration (Added by User)
 
-- [ ] Add independent `texgo-engine` executable with scan, conversion/build pipeline, watch and newline JSON-RPC 2.0.
-- [ ] Add versioned project JSON configuration, structured build results, concise diagnostics and complete captured logs.
-- [ ] Supply VS Code build/watch tasks and documentation; source replacement requires an explicit flag or confirmation field.
-- [ ] Persist generated-PDF-to-source mappings so background runs update edited original images after reference replacement.
+- [x] Add independent `texgo-engine` executable with scan, conversion/build pipeline, watch and newline JSON-RPC 2.0.
+- [x] Add versioned project JSON configuration, structured build results, concise diagnostics and complete captured logs.
+- [x] Supply VS Code build/watch tasks and documentation; source replacement requires an explicit flag or confirmation field.
+- [x] Persist generated-PDF-to-source mappings so background runs update edited original images after reference replacement.
 - [ ] Test headless operations on Actions and publish engine archives alongside desktop installers.
 
 ## Acceptance
