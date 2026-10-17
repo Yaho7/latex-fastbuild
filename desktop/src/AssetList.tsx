@@ -59,6 +59,7 @@ export default function AssetList(props: Props) {
       <div className="asset-scroll">
         <table className="asset-table">
           <caption className="sr-only">项目图片及转换状态</caption>
+          <colgroup><col className="asset-select-column" /><col /><col className="asset-status-column" /></colgroup>
           <thead className="sr-only"><tr><th>选择</th><th>图片</th><th>状态</th></tr></thead>
           <tbody>
             {props.images.map((asset) => {

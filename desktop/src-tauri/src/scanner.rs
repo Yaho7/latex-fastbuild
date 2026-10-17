@@ -45,7 +45,7 @@ pub(crate) fn scan(main: &Path) -> Result<Scan, String> {
         root, sources: BTreeMap::new(), indices: HashMap::new(), active: HashSet::new(), graphics_dirs: Vec::new(),
         contexts: HashMap::new(), unsafe_context: false,
     };
-    scanner.visit(&main)?;
+    scanner.visit(&main, 0)?;
     if scanner.unsafe_context {
         scanner.project.warnings.push("检测到局部图片搜索路径或不同搜索路径下的重复子文件引用；请改用明确的图片路径后重新扫描".into());
         for asset in &mut scanner.project.images {
@@ -59,7 +59,7 @@ pub(crate) fn scan(main: &Path) -> Result<Scan, String> {
 }
 
 impl Scanner {
-    fn visit(&mut self, file: &Path) -> Result<(), String> {
+    fn visit(&mut self, file: &Path, enclosing_depth: usize) -> Result<(), String> {
         if self.active.contains(file) {
             self.project.warnings.push(format!("跳过循环引用：{}", file.display()));
             return Ok(());
@@ -90,12 +90,12 @@ impl Scanner {
                     let resolved = [self.root.join(&path), file.parent().unwrap().join(&path)]
                         .into_iter().find_map(|p| p.canonicalize().ok());
                     match resolved {
-                        Some(path) if path.starts_with(&self.root) => self.visit(&path)?,
+                        Some(path) if path.starts_with(&self.root) => self.visit(&path, enclosing_depth + command.depth)?,
                         _ => self.project.warnings.push(format!("{}:{}：子文件不存在或位于项目之外：{arg}", file.display(), command.line)),
                     }
                 }
                 "graphicspath" => {
-                    if command.depth > 0 { self.unsafe_context = true; }
+                    if enclosing_depth + command.depth > 0 { self.unsafe_context = true; }
                     let mut i = command.start;
                     let mut dirs = Vec::new();
                     while i < command.end {

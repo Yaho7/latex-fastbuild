@@ -83,15 +83,25 @@ fn svg_pdf(bytes: &[u8], source: &Path, root: &Path) -> Result<(Vec<u8>, Vec<(Pa
     let collected = dependencies.clone();
     let denied = rejected.clone();
     let root = root.to_path_buf();
-    let resolver = svg2pdf::usvg::ImageHrefResolver::default_string_resolver();
+    let resolver = svg2pdf::usvg::ImageHrefResolver::default_data_resolver();
     settings.image_href_resolver.resolve_string = Box::new(move |href, options| {
         let path = options.get_abs_path(Path::new(href));
         let resolved = path.canonicalize().ok().filter(|p| p.starts_with(&root));
         if let Some(path) = resolved {
             if fs::metadata(&path).is_ok_and(|m| m.len() <= 64 * 1024 * 1024) {
                 if let Ok(data) = fs::read(&path) {
+                    let mime = match image::guess_format(&data) {
+                        Ok(image::ImageFormat::Png) => "image/png",
+                        Ok(image::ImageFormat::Jpeg) => "image/jpeg",
+                        Ok(image::ImageFormat::Gif) => "image/gif",
+                        Ok(image::ImageFormat::WebP) => "image/webp",
+                        _ if path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("svg") || ext.eq_ignore_ascii_case("svgz")) => "image/svg+xml",
+                        _ => { denied.lock().unwrap().push(href.to_string()); return None; },
+                    };
                     collected.lock().unwrap().insert(path.clone(), digest(&data));
-                    return resolver(path.to_str()?, options);
+                    let decoded = resolver(mime, Arc::new(data), options);
+                    if decoded.is_none() { denied.lock().unwrap().push(href.to_string()); }
+                    return decoded;
                 }
             }
         }

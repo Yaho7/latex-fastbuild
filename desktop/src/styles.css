@@ -88,6 +88,8 @@ dl, dd { margin: 0; }
 .selection-bar label { display: flex; align-items: center; gap: 8px; }
 .asset-scroll { flex: 1; min-height: 0; overflow: auto; }
 .asset-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.asset-select-column { width: 36px; }
+.asset-status-column { width: 69px; }
 .asset-table tbody tr { border-bottom: 1px solid #edf0f0; }
 .asset-table tbody tr:hover { background: #f8fafa; }
 .asset-table tbody tr.active { background: var(--teal-soft); }

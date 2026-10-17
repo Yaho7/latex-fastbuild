@@ -132,6 +132,7 @@ fn undo_path(root: &Path) -> Result<PathBuf, String> {
     let dir = root.join(".texgo");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     if !dir.canonicalize().map_err(|e| e.to_string())?.starts_with(root) { return Err("项目状态目录不能链接到项目之外".into()); }
+    crate::workspace::sync_directory(root)?;
     Ok(dir.join("undo.json"))
 }
 
