@@ -240,6 +240,10 @@ pub fn parse_diagnostics(text: &str, main: &Path) -> Vec<Diagnostic> {
 
 /// Invokes installed latexmk directly. No shell, download, or TeX installation.
 pub fn build_document(config: &ResolvedConfig) -> Result<BuildResult, String> {
+    build_document_with_refresh(config, false)
+}
+
+fn build_document_with_refresh(config: &ResolvedConfig, refresh: bool) -> Result<BuildResult, String> {
     // Revalidate before writing even when a caller retains a resolved config.
     let config = load_config(&config.config_path)?;
     let _lock = crate::transaction::lock_project(&config.root)?;
@@ -250,8 +254,11 @@ pub fn build_document(config: &ResolvedConfig) -> Result<BuildResult, String> {
     let stem = config.main_file.file_stem().ok_or("mainFile has no stem")?.to_string_lossy();
     let log_path = config.output_dir.join(format!("{stem}.texgo-output.log"));
     let pdf_path = config.output_dir.join(format!("{stem}.pdf"));
-    let output = Command::new("latexmk")
-        .arg(match config.config.build.engine.as_str() { "xelatex" => "-xelatex", "lualatex" => "-lualatex", _ => "-pdf" })
+    let mut command = Command::new("latexmk");
+    // Fixed-length cache paths can change within one filesystem timestamp tick.
+    // Force rule evaluation after image mutations without deleting aux files.
+    if refresh { command.arg("-g"); }
+    let output = command.arg(match config.config.build.engine.as_str() { "xelatex" => "-xelatex", "lualatex" => "-lualatex", _ => "-pdf" })
         .arg(if config.config.build.synctex { "-synctex=1" } else { "-synctex=0" })
         .args(["-file-line-error", "-interaction=nonstopmode", "-halt-on-error"])
         .arg(format!("-outdir={}", config.output_dir.display()))
@@ -318,7 +325,8 @@ pub fn run_pipeline(config: &ResolvedConfig) -> Result<PipelineResult, String> {
             replacement = Some(workspace.apply()?);
         }
     }
-    let build = build_document(&config)?;
+    let refresh = replacement.is_some() || conversion.as_ref().is_some_and(|result| result.images.iter().any(|image| !image.cached));
+    let build = build_document_with_refresh(&config, refresh)?;
     Ok(PipelineResult { project: workspace.project().clone(), conversion, replacement, build })
 }
 

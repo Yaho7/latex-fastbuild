@@ -302,8 +302,10 @@ exit 0
         assert!(first.status.success(), "{}", String::from_utf8_lossy(&first.stdout));
         let result: Value = serde_json::from_slice(&first.stdout).unwrap();
         assert_eq!(result["replacement"]["referencesChanged"], 1);
+        assert!(fs::read_to_string(dir.path().join("compiler-args.txt")).unwrap().lines().any(|arg| arg == "-g"));
         let replaced = fs::read(dir.path().join("main.tex")).unwrap();
         let undo = fs::read(dir.path().join(".texgo/undo.json")).unwrap();
+        fs::remove_file(dir.path().join("compiler-args.txt")).unwrap();
         let second = invoke(dir.path(), "run");
         assert!(second.status.success(), "{}", String::from_utf8_lossy(&second.stdout));
         let result: Value = serde_json::from_slice(&second.stdout).unwrap();
@@ -311,6 +313,18 @@ exit 0
         assert_eq!(fs::read(dir.path().join("main.tex")).unwrap(), replaced);
         assert_eq!(fs::read(dir.path().join(".texgo/undo.json")).unwrap(), undo);
         assert!(dir.path().join("a.png").is_file());
+        assert!(!fs::read_to_string(dir.path().join("compiler-args.txt")).unwrap().lines().any(|arg| arg == "-g"));
+
+        // Cache paths have fixed-length hashes, so a same-second edit must not
+        // rely on latexmk noticing a size or timestamp change in main.tex.
+        image::RgbImage::from_pixel(4, 2, image::Rgb([40, 167, 69])).save(dir.path().join("a.png")).unwrap();
+        fs::remove_file(dir.path().join("compiler-args.txt")).unwrap();
+        let updated = invoke(dir.path(), "run");
+        assert!(updated.status.success(), "{}", String::from_utf8_lossy(&updated.stdout));
+        let result: Value = serde_json::from_slice(&updated.stdout).unwrap();
+        assert_eq!(result["replacement"]["referencesChanged"], 1);
+        assert_ne!(fs::read(dir.path().join("main.tex")).unwrap(), replaced);
+        assert!(fs::read_to_string(dir.path().join("compiler-args.txt")).unwrap().lines().any(|arg| arg == "-g"));
     }
 
     #[test]

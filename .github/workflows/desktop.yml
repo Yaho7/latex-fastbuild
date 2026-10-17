@@ -216,7 +216,7 @@ jobs:
       - name: Install test-only LaTeX on the runner
         run: |
           sudo apt-get update
-          sudo apt-get install -y latexmk texlive-latex-base poppler-utils
+          sudo apt-get install -y latexmk texlive-latex-base poppler-utils python3-pil
       - name: Convert, replace, compile and repeat without rewriting references
         run: |
           project=tests/fixtures/editor-project
@@ -224,6 +224,7 @@ jobs:
           cp cmd/texgo/template-assets/logo.png "$project/figures/logo.png"
           cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/first.json
           cp "$project/main.tex" automation-proof/after-first.tex
+          pdftoppm -png -scale-to 1400 -singlefile "$project/build/main.pdf" automation-proof/first-document
           cargo run --manifest-path desktop/src-tauri/Cargo.toml --locked --no-default-features --features automation --bin texgo-engine -- run --config "$project/.texgo/project.json" --json > automation-proof/repeated.json
           cmp "$project/main.tex" automation-proof/after-first.tex
           python - <<'PY'
@@ -247,6 +248,25 @@ jobs:
           test -s "$project/build/main.synctex.gz"
           pdfinfo "$project/build/main.pdf"
           pdftoppm -png -scale-to 1400 -singlefile "$project/build/main.pdf" automation-proof/compiled-document
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+          def colors(path):
+              pixels = list(Image.open(path).convert('RGB').getdata())
+              return {
+                  'blue': sum(b > r + 60 and b > g + 60 for r, g, b in pixels),
+                  'green': sum(g > r + 50 and g > b + 50 for r, g, b in pixels),
+              }
+          first = colors('automation-proof/first-document.png')
+          updated = colors('automation-proof/compiled-document.png')
+          proof = {'first': first, 'updated': updated}
+          Path('automation-proof/render-proof.json').write_text(json.dumps(proof, indent=2))
+          print(proof)
+          assert first['blue'] > 100, 'Original PDF did not render the blue fixture'
+          assert updated['green'] > 100, 'Final PDF still contains the old image'
+          assert updated['blue'] < first['blue'] // 10, 'Old blue plot remains in final PDF'
+          PY
           cp "$project/build/main.pdf" automation-proof/
           cp "$project/main.tex" automation-proof/after-image-update.tex
       - uses: actions/upload-artifact@v4

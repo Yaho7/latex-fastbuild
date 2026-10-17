@@ -125,6 +125,10 @@ images already usable by TeX are not rasterized or reconverted.
    cache, but compilation still uses the unchanged original TeX references.
 4. Invoke latexmk. A compiler failure does not automatically undo a successful
    reference replacement; its persisted undo record remains available.
+   When a generated image or reference changes, pass `-g` so same-second,
+   same-size path edits cannot leave a stale document PDF. Unchanged cache-hit
+   runs retain latexmk's normal incremental behavior; auxiliary files are not
+   deleted.
 
 Source images are preserved. Conversion writes PDFs into `texgo-pdf` beside
 the images. Managed reference provenance and the latest undo transaction live
