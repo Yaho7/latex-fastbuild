@@ -36,6 +36,9 @@ pub(crate) fn prepare(project: &Project, sources: &BTreeMap<PathBuf, Vec<u8>>, c
         if digest(&fs::read(original).map_err(|e| e.to_string())?) != output.source_hash {
             return Err(format!("图片已被修改，请重新转换：{}", asset.relative_path));
         }
+        for (path, hash) in &output.dependencies {
+            if digest(&fs::read(path).map_err(|e| e.to_string())?) != *hash { return Err("SVG 的引用资源已修改，请重新转换".into()); }
+        }
         let real = output.path.canonicalize().map_err(|e| format!("转换文件已丢失：{e}"))?;
         if !real.starts_with(root) || digest(&fs::read(&real).map_err(|e| e.to_string())?) != output.pdf_hash {
             return Err("转换文件已被修改，请重新转换".into());
@@ -74,6 +77,7 @@ pub(crate) fn prepare(project: &Project, sources: &BTreeMap<PathBuf, Vec<u8>>, c
 pub(crate) fn apply(project: &Project, prepared: Prepared) -> Result<MutationResult, String> {
     if prepared.files.is_empty() { return Err("没有可替换的引用，请先转换图片".into()); }
     let root = Path::new(&project.root);
+    let _lock = lock_project(root)?;
     let record = Undo {
         version: 1,
         main_file: project.main_file.clone(),
@@ -96,6 +100,7 @@ pub(crate) fn apply(project: &Project, prepared: Prepared) -> Result<MutationRes
 
 pub(crate) fn undo(project: &Project) -> Result<MutationResult, String> {
     let root = Path::new(&project.root);
+    let _lock = lock_project(root)?;
     let path = undo_path(root)?;
     let record: Undo = serde_json::from_slice(&fs::read(&path).map_err(|_| "没有可撤销的替换记录")?).map_err(|e| format!("恢复记录损坏：{e}"))?;
     if record.version != 1 || record.main_file != project.main_file { return Err("撤销记录不属于当前主文件".into()); }
@@ -115,6 +120,7 @@ pub(crate) fn undo(project: &Project) -> Result<MutationResult, String> {
         save_atomic(file, before)?;
     }
     fs::remove_file(path).map_err(|e| e.to_string())?;
+    crate::workspace::sync_directory(&root.join(".texgo"))?;
     Ok(MutationResult { files_changed: restore.len(), references_changed: record.references_changed })
 }
 
@@ -127,6 +133,14 @@ fn undo_path(root: &Path) -> Result<PathBuf, String> {
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     if !dir.canonicalize().map_err(|e| e.to_string())?.starts_with(root) { return Err("项目状态目录不能链接到项目之外".into()); }
     Ok(dir.join("undo.json"))
+}
+
+fn lock_project(root: &Path) -> Result<fs::File, String> {
+    let path = undo_path(root)?.with_file_name("write.lock");
+    if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.file_type().is_symlink()) { return Err("项目锁文件不能是符号链接".into()); }
+    let file = fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).map_err(|e| e.to_string())?;
+    fs2::FileExt::try_lock_exclusive(&file).map_err(|_| "另一个 Texgo 实例正在修改项目，请稍后重试".to_string())?;
+    Ok(file)
 }
 
 fn ensure_current(root: &Path, path: &Path, expected: &[u8]) -> Result<(), String> {

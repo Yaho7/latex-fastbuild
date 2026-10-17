@@ -18,6 +18,7 @@ pub(crate) struct StoredConversion {
     pub path: PathBuf,
     pub source_hash: String,
     pub pdf_hash: String,
+    pub dependencies: Vec<(PathBuf, String)>,
 }
 
 impl Workspace {
@@ -46,11 +47,11 @@ impl Workspace {
                 let real = path.canonicalize().map_err(|e| e.to_string())?;
                 if !real.starts_with(&self.scan.project.root) { return Err("图片路径已移出项目".to_string()); }
                 let source_hash = digest(&fs::read(&real).map_err(|e| e.to_string())?);
-                let (output, cached) = conversion::convert(&real, options)?;
+                let (output, cached, dependencies) = conversion::convert(&real, Path::new(&self.scan.project.root), options)?;
                 if digest(&fs::read(&real).map_err(|e| e.to_string())?) != source_hash { return Err("转换过程中图片发生变化，请重试".into()); }
                 let bytes = fs::read(&output).map_err(|e| e.to_string())?;
                 let converted = ConvertedImage { id: asset.id.clone(), pdf_path: Some(output.to_string_lossy().into()), bytes: Some(bytes.len() as u64), cached, error: None };
-                self.converted.insert(asset.id.clone(), StoredConversion { path: output, source_hash, pdf_hash: digest(&bytes) });
+                self.converted.insert(asset.id.clone(), StoredConversion { path: output, source_hash, pdf_hash: digest(&bytes), dependencies });
                 Ok(converted)
             })();
             let converted = result.unwrap_or_else(|error| {
@@ -94,7 +95,7 @@ impl Workspace {
         if !path.starts_with(&self.scan.project.root) { return Err("图片位于项目之外".into()); }
         if fs::metadata(&path).map_err(|e| e.to_string())?.len() > 64 * 1024 * 1024 { return Err("文件过大，无法内嵌预览".into()); }
         let bytes = fs::read(&path).map_err(|e| e.to_string())?;
-        if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
+        if path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
             return Ok(AssetPreview { data: STANDARD.encode(bytes), kind: "pdf".into() });
         }
         // Decode raster formats so TIFF/BMP preview consistently in every WebView.
@@ -121,5 +122,14 @@ pub(crate) fn save_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     file.write_all(bytes).map_err(|e| e.to_string())?;
     file.as_file().sync_all().map_err(|e| e.to_string())?;
     file.persist(path).map_err(|e| e.to_string())?;
+    sync_directory(parent)?;
+    Ok(())
+}
+
+pub(crate) fn sync_directory(path: &Path) -> Result<(), String> {
+    #[cfg(unix)]
+    fs::File::open(path).and_then(|directory| directory.sync_all()).map_err(|e| e.to_string())?;
+    #[cfg(not(unix))]
+    let _ = path;
     Ok(())
 }

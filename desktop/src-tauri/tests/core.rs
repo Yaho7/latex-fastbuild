@@ -223,3 +223,93 @@ fn conversion_refuses_symlinked_output_directory() {
     assert!(result.images[0].error.as_ref().unwrap().contains("符号链接"));
     assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
 }
+
+#[test]
+fn unicode_verbatim_delimiters_do_not_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "main.tex", "\\verbéé\n\\includegraphics{a.png}");
+    png(dir.path(), "a.png");
+    let ws = Workspace::open(&dir.path().join("main.tex")).unwrap();
+    assert_eq!(ws.project().images.len(), 1);
+}
+
+#[test]
+fn contextual_graphics_paths_block_automatic_replacement() {
+    let dir = tempfile::tempdir().unwrap();
+    png(dir.path(), "base/a.png");
+    png(dir.path(), "alternate/a.png");
+    write(dir.path(), "shared.tex", "\\includegraphics{a.png}");
+    for source in [
+        "\\graphicspath{{base/}}\\input{shared}\\graphicspath{{alternate/}}\\input{shared}",
+        "\\graphicspath{{base/}}{\\graphicspath{{alternate/}}\\includegraphics{a.png}}\\includegraphics{a.png}",
+    ] {
+        write(dir.path(), "main.tex", source);
+        let ws = Workspace::open(&dir.path().join("main.tex")).unwrap();
+        assert!(ws.project().images.iter().all(|image| image.status != "ready"));
+        assert!(!ws.project().warnings.is_empty());
+    }
+}
+
+#[test]
+fn svg_resources_are_bounded_and_participate_in_cache_and_staleness_checks() {
+    let dir = tempfile::tempdir().unwrap();
+    png(dir.path(), "photo.png");
+    write(dir.path(), "project/main.tex", "\\includegraphics{plot.svg}");
+    write(dir.path(), "project/plot.svg", r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16"><image href="../photo.png" width="32" height="16"/></svg>"#);
+    let main = dir.path().join("project/main.tex");
+    let mut ws = Workspace::open(&main).unwrap();
+    let result = ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(result.images[0].error.is_some());
+    png(dir.path(), "project/photo.png");
+    write(dir.path(), "project/plot.svg", r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16"><image href="photo.png" width="32" height="16"/></svg>"#);
+    let mut ws = Workspace::open(&main).unwrap();
+    let first = ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(first.images[0].error.is_none());
+    image::RgbaImage::from_pixel(32, 16, image::Rgba([200, 5, 5, 255])).save(dir.path().join("project/photo.png")).unwrap();
+    assert!(ws.plan().is_err());
+    let second = ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(second.images[0].error.is_none());
+    assert_ne!(first.images[0].pdf_path, second.images[0].pdf_path);
+}
+
+#[test]
+fn png_density_preserves_natural_page_dimensions_across_quality_modes() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "main.tex", "\\includegraphics{a.png}");
+    let file = fs::File::create(dir.path().join("a.png")).unwrap();
+    let mut encoder = png::Encoder::new(file, 200, 100);
+    encoder.set_color(png::ColorType::Rgb);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_pixel_dims(Some(png::PixelDimensions { xppu: 11811, yppu: 11811, unit: png::Unit::Meter }));
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(&vec![0; 200 * 100 * 3]).unwrap();
+    writer.finish().unwrap();
+    let mut ws = Workspace::open(&dir.path().join("main.tex")).unwrap();
+    let mut opts = options(&ws);
+    for quality in ["original", "compact"] {
+        opts.quality = quality.into();
+        let result = ws.convert(&opts, &AtomicBool::new(false), |_| {}).unwrap();
+        let doc = lopdf::Document::load(result.images[0].pdf_path.as_ref().unwrap()).unwrap();
+        let page = *doc.get_pages().values().next().unwrap();
+        let bounds = doc.get_object(page).unwrap().as_dict().unwrap().get(b"MediaBox").unwrap().as_array().unwrap();
+        let width = match bounds[2] { lopdf::Object::Real(value) => value, lopdf::Object::Integer(value) => value as f32, _ => panic!("invalid page width") };
+        assert!((width - 48.0).abs() < 0.01, "unexpected width: {width}");
+    }
+}
+
+#[test]
+fn project_write_lock_prevents_concurrent_apply_without_clobbering_journal() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "main.tex", "\\includegraphics{a.png}");
+    png(dir.path(), "a.png");
+    let mut ws = Workspace::open(&dir.path().join("main.tex")).unwrap();
+    ws.convert(&options(&ws), &AtomicBool::new(false), |_| {}).unwrap();
+    fs::create_dir_all(dir.path().join(".texgo")).unwrap();
+    let lock = fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(dir.path().join(".texgo/write.lock")).unwrap();
+    fs2::FileExt::lock_exclusive(&lock).unwrap();
+    assert!(ws.apply().unwrap_err().contains("另一个"));
+    assert!(!dir.path().join(".texgo/undo.json").exists());
+    drop(lock);
+    ws.apply().unwrap();
+    assert!(dir.path().join(".texgo/undo.json").exists());
+}

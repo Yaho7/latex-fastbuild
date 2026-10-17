@@ -18,6 +18,8 @@ struct Scanner {
     indices: HashMap<String, usize>,
     active: HashSet<PathBuf>,
     graphics_dirs: Vec<PathBuf>,
+    contexts: HashMap<PathBuf, Vec<PathBuf>>,
+    unsafe_context: bool,
 }
 
 struct Command {
@@ -25,6 +27,7 @@ struct Command {
     start: usize,
     end: usize,
     line: usize,
+    depth: usize,
 }
 
 pub(crate) fn scan(main: &Path) -> Result<Scan, String> {
@@ -40,8 +43,18 @@ pub(crate) fn scan(main: &Path) -> Result<Scan, String> {
             tex_files: Vec::new(), images: Vec::new(), warnings: Vec::new(), undo_available: false,
         },
         root, sources: BTreeMap::new(), indices: HashMap::new(), active: HashSet::new(), graphics_dirs: Vec::new(),
+        contexts: HashMap::new(), unsafe_context: false,
     };
     scanner.visit(&main)?;
+    if scanner.unsafe_context {
+        scanner.project.warnings.push("检测到局部图片搜索路径或不同搜索路径下的重复子文件引用；请改用明确的图片路径后重新扫描".into());
+        for asset in &mut scanner.project.images {
+            if asset.status == "ready" {
+                asset.status = "unsupported".into();
+                asset.message = Some("图片搜索路径依赖 TeX 上下文，无法安全自动替换".into());
+            }
+        }
+    }
     Ok(Scan { project: scanner.project, sources: scanner.sources })
 }
 
@@ -51,13 +64,17 @@ impl Scanner {
             self.project.warnings.push(format!("跳过循环引用：{}", file.display()));
             return Ok(());
         }
-        if self.sources.contains_key(file) { return Ok(()); }
+        if self.sources.contains_key(file) {
+            if self.contexts.get(file) != Some(&self.graphics_dirs) { self.unsafe_context = true; }
+            return Ok(());
+        }
         if self.sources.len() >= 1024 { return Err("项目包含超过 1024 个 TeX 文件，请缩小项目范围".into()); }
         let bytes = fs::read(file).map_err(|e| format!("读取 {} 失败：{e}", file.display()))?;
         if bytes.len() > 16 * 1024 * 1024 { return Err(format!("TeX 文件过大：{}", file.display())); }
         let text = String::from_utf8(bytes.clone()).map_err(|_| format!("{} 不是 UTF-8 文件，请先转换编码", file.display()))?;
         let masked = mask_non_code(&text);
         self.sources.insert(file.to_path_buf(), bytes);
+        self.contexts.insert(file.to_path_buf(), self.graphics_dirs.clone());
         self.project.tex_files.push(file.to_string_lossy().into());
         self.active.insert(file.to_path_buf());
         for command in commands(&masked) {
@@ -78,6 +95,7 @@ impl Scanner {
                     }
                 }
                 "graphicspath" => {
+                    if command.depth > 0 { self.unsafe_context = true; }
                     let mut i = command.start;
                     let mut dirs = Vec::new();
                     while i < command.end {
@@ -177,7 +195,10 @@ fn commands(text: &str) -> Vec<Command> {
     let bytes = text.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
+    let mut depth: usize = 0;
     while i < bytes.len() {
+        if bytes[i] == b'{' { depth += 1; i += 1; continue; }
+        if bytes[i] == b'}' { depth = depth.saturating_sub(1); i += 1; continue; }
         if bytes[i] != b'\\' { i += 1; continue; }
         let command_at = i;
         i += 1;
@@ -185,6 +206,17 @@ fn commands(text: &str) -> Vec<Command> {
         while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; }
         if start == i { i += 1; continue; }
         let name = &text[start..i];
+        if matches!(name, "begingroup" | "bgroup") { depth += 1; continue; }
+        if matches!(name, "endgroup" | "egroup") { depth = depth.saturating_sub(1); continue; }
+        if matches!(name, "begin" | "end") {
+            if let Some((start, end)) = group(bytes, skip_space(bytes, i), b'{', b'}') {
+                if &text[start..end] != "document" {
+                    if name == "begin" { depth += 1; } else { depth = depth.saturating_sub(1); }
+                }
+                i = end + 1;
+            }
+            continue;
+        }
         if !matches!(name, "input" | "include" | "subfile" | "includegraphics" | "graphicspath" | "DeclareGraphicsExtensions") { continue; }
         if bytes.get(i) == Some(&b'*') { i += 1; }
         i = skip_space(bytes, i);
@@ -193,7 +225,7 @@ fn commands(text: &str) -> Vec<Command> {
             else { break; }
         }
         if let Some((start, end)) = group(bytes, i, b'{', b'}') {
-            out.push(Command { name: name.into(), start, end, line: bytes[..command_at].iter().filter(|&&b| b == b'\n').count() + 1 });
+            out.push(Command { name: name.into(), start, end, depth, line: bytes[..command_at].iter().filter(|&&b| b == b'\n').count() + 1 });
             i = end + 1;
         }
     }
@@ -222,10 +254,13 @@ fn mask_non_code(text: &str) -> String {
             if !skipped && bytes[i..].starts_with(b"\\verb") && bytes.get(i + 5).is_some_and(|b| !b.is_ascii_alphabetic()) {
                 let mut delimiter = i + 5;
                 if bytes.get(delimiter) == Some(&b'*') { delimiter += 1; }
-                if let Some(&value) = bytes.get(delimiter) {
-                    i = delimiter + 1;
-                    while i < bytes.len() && bytes[i] != value && bytes[i] != b'\n' { i += 1; }
-                    if i < bytes.len() { i += 1; }
+                if let Some(value) = text.get(delimiter..).and_then(|s| s.chars().next()) {
+                    i = delimiter + value.len_utf8();
+                    while i < bytes.len() {
+                        let current = text[i..].chars().next().unwrap();
+                        i += current.len_utf8();
+                        if current == value || current == '\n' { break; }
+                    }
                     skipped = true;
                 }
             }
