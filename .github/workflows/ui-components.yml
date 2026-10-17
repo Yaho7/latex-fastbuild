@@ -28,9 +28,9 @@ jobs:
       - name: Inspect official shadcn registry and component documentation
         run: |
           npx shadcn@latest info --json
-          npx shadcn@latest docs button badge checkbox dialog tabs tooltip toggle-group input input-group select field empty separator progress skeleton
+          npx shadcn@latest docs button badge checkbox dialog tabs tooltip toggle-group input input-group select native-select field empty separator progress skeleton table alert
       - name: Generate official components and resolved dependency lock
-        run: npx shadcn@latest add button badge checkbox dialog tabs tooltip toggle-group input input-group select field empty separator progress skeleton --yes
+        run: npx shadcn@latest add button badge checkbox dialog tabs tooltip toggle-group input input-group select native-select field empty separator progress skeleton table alert --yes
       - uses: actions/upload-artifact@v4
         if: always()
         with:
