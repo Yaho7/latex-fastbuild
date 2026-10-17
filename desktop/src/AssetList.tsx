@@ -40,7 +40,7 @@ export default function AssetList(props: Props) {
     <section className="asset-panel" aria-label="项目图片">
       <div className="panel-heading"><h2>项目图片</h2><span className="count">{props.total}</span></div>
       <div className="asset-filters">
-        <label className="search-field"><Search size={15} aria-hidden="true" /><input type="search" aria-label="搜索图片" placeholder="搜索路径或格式" value={props.search} onChange={(event) => props.onSearch(event.target.value)} /></label>
+        <label className="search-field"><Search size={17} strokeWidth={1.7} aria-hidden="true" /><input type="search" aria-label="搜索图片" placeholder="搜索路径或格式" value={props.search} onChange={(event) => props.onSearch(event.target.value)} /></label>
         <select aria-label="筛选状态" value={props.filter} onChange={(event) => props.onFilter(event.target.value)}>
           <option value="all">全部状态</option>
           <option value="ready">可转换</option>
@@ -72,7 +72,7 @@ export default function AssetList(props: Props) {
                   <td className="select-cell"><input type="checkbox" aria-label={`选择 ${asset.relativePath}`} checked={props.selected.has(asset.id)} disabled={props.busy || asset.status !== "ready"} onChange={() => props.onSelect(asset.id)} /></td>
                   <td className="asset-name-cell">
                     <button className="asset-name" aria-label={`预览 ${asset.relativePath}`} aria-pressed={props.activeId === asset.id} onClick={() => props.onActivate(asset.id)} title={asset.relativePath}>
-                      {warning ? <FileWarning size={17} className="warning-ink" aria-hidden="true" /> : <FileImage size={17} aria-hidden="true" />}
+                      {warning ? <FileWarning size={20} strokeWidth={1.6} className="warning-ink" aria-hidden="true" /> : <FileImage size={20} strokeWidth={1.6} aria-hidden="true" />}
                       <span className="asset-path">{asset.relativePath}</span>
                     </button>
                     <div className="asset-meta"><span>{asset.format.toUpperCase()}</span><span>{formatBytes(asset.bytes)}</span><span>{asset.references.length} 处引用</span></div>

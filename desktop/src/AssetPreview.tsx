@@ -39,8 +39,7 @@ export default function AssetPreview({ asset, result, revision }: Props) {
 
   return (
     <section className="preview-panel" aria-label="图片预览">
-      <div className="preview-heading"><h2>图片预览</h2><div className="segmented" role="group" aria-label="预览版本"><button aria-pressed={!showConverted} onClick={() => setConverted(false)} disabled={!asset}>原图</button><button aria-pressed={showConverted} onClick={() => setConverted(true)} disabled={!hasConverted}>转换后</button></div></div>
-      <div className="preview-filename" title={showConverted ? result?.pdfPath ?? "" : asset?.path ?? ""}>{asset?.relativePath ?? "未选择图片"}</div>
+      <div className="preview-heading"><div className="preview-heading-copy"><h2>图片预览</h2><div className="preview-filename" title={showConverted ? result?.pdfPath ?? "" : asset?.path ?? ""}>{asset?.relativePath ?? "未选择图片"}</div></div><div className="segmented" role="group" aria-label="预览版本"><button aria-pressed={!showConverted} title="原图" onClick={() => setConverted(false)} disabled={!asset}>原图</button><button aria-pressed={showConverted} title="转换后" onClick={() => setConverted(true)} disabled={!hasConverted}>转换后</button></div></div>
       <div className="preview-surface" aria-busy={loading}>
         {loading && <div className="preview-placeholder" role="status"><LoaderCircle size={23} className="spin" aria-hidden="true" /><span>正在载入预览</span></div>}
         {!loading && error && <div className="preview-placeholder preview-error" role="alert"><TriangleAlert size={24} aria-hidden="true" /><span>{error}</span></div>}
